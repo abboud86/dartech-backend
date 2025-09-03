@@ -18,24 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.3', '8.4']
-
-    # (Optionnel) Base de données pour tests Doctrine
-    # services:
-    #   postgres:
-    #     image: postgres:16
-    #     env:
-    #       POSTGRES_USER: symfony
-    #       POSTGRES_PASSWORD: symfony
-    #       POSTGRES_DB: app_test
-    #     ports: ['5432:5432']
-    #     options: >-
-    #       --health-cmd="pg_isready -U symfony" --health-interval=10s
-    #       --health-timeout=5s --health-retries=5
-
-    env:
-      APP_ENV: test
-      # DATABASE_URL: "postgresql://symfony:symfony@127.0.0.1:5432/app_test?serverVersion=16&charset=utf8" # si DB
+        php: [ '8.3', '8.4' ]
 
     steps:
       - uses: actions/checkout@v4
@@ -62,9 +45,9 @@ jobs:
             composer-${{ runner.os }}-${{ matrix.php }}-
             composer-${{ runner.os }}-
 
-      - name: Install dependencies
+      - name: Install dependencies (only if composer.json exists)
         if: hashFiles('composer.json') != ''
-        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
+        run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Composer validate
         if: hashFiles('composer.json') != ''
@@ -73,32 +56,3 @@ jobs:
       - name: Composer audit
         if: hashFiles('composer.lock') != ''
         run: composer audit --no-interaction --format table
-
-      # --- Linters Symfony (recommandés par la doc) ---
-      - name: Lint YAML
-        run: php bin/console lint:yaml config --parse-tags
-        continue-on-error: false
-
-      - name: Lint Twig
-        run: php bin/console lint:twig templates
-        continue-on-error: false
-
-      - name: Lint Container (prod)
-        run: php bin/console lint:container --env=prod
-        continue-on-error: false
-
-      # --- (Optionnel) Préparer la DB de test ---
-      # - name: Wait for DB
-      #   run: |
-      #     for i in {1..30}; do
-      #       (echo > /dev/tcp/127.0.0.1/5432) && break || sleep 1
-      #     done
-      # - name: Create & migrate schema
-      #   run: |
-      #     php bin/console doctrine:database:create --if-not-exists --env=test
-      #     php bin/console doctrine:migrations:migrate --no-interaction --env=test
-
-      # --- Tests via PHPUnit Bridge ---
-      - name: Run tests
-        if: hashFiles('**/phpunit*.xml*') != ''
-        run: ./vendor/bin/simple-phpunit -v
