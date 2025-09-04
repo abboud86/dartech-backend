@@ -61,11 +61,15 @@ jobs:
         if: hashFiles('composer.json') != ''
         run: composer validate --strict --no-check-publish
 
-      - name: Prepare Symfony test env
+      - name: Prepare Symfony test env (skip if no Symfony)
         run: |
-          if [ -f ".env.test" ]; then cp -n .env.test .env || true; fi
-          php -r "echo 'APP_ENV='.('test').PHP_EOL;" >> .env 2>/dev/null || true
-          php bin/console --env=test cache:clear
+          if [ -f "bin/console" ]; then
+            if [ -f ".env.test" ]; then cp -n .env.test .env || true; fi
+            printf "APP_ENV=test\n" >> .env 2>/dev/null || true
+            php bin/console --env=test cache:clear
+          else
+            echo "No bin/console yet; skipping Symfony prep."
+          fi
 
       # --- Qualité & Tests : scripts Composer (DoD Symfony Feature) ---
       - name: Code style check
