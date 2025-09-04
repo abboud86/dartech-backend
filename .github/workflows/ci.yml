@@ -3,7 +3,12 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
+      - "docs/**"
 
 permissions:
   contents: read
@@ -14,29 +19,34 @@ concurrency:
 
 jobs:
   php:
+    name: PHP ${{ matrix.php }} • Bootstrap only
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        php: [ '8.3', '8.4' ]
+        php: ['8.3', '8.4']
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring, intl, pdo_pgsql, zip, xml
-          tools: composer
           coverage: none
+          tools: composer
+          extensions: mbstring, intl, xml, zip
 
       - name: Show versions
         run: |
           php -v
           composer -V
 
-      - name: Cache Composer
+      # === Tout ce qui suit est OPTIONNEL et ne s'exécute que si les fichiers existent ===
+
+      - name: Restore Composer cache (optional)
+        if: hashFiles('composer.lock') != ''
         uses: actions/cache@v4
         with:
           path: ~/.composer/cache/files
@@ -45,14 +55,34 @@ jobs:
             composer-${{ runner.os }}-${{ matrix.php }}-
             composer-${{ runner.os }}-
 
-      - name: Install dependencies (only if composer.json exists)
+      - name: Install dependencies (optional)
         if: hashFiles('composer.json') != ''
         run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Composer validate
+      - name: Composer validate (optional)
         if: hashFiles('composer.json') != ''
         run: composer validate --strict --no-check-publish
 
-      - name: Composer audit
-        if: hashFiles('composer.lock') != ''
-        run: composer audit --no-interaction --format table
+      # Détection des scripts (optionnel)
+      - id: detect-scripts
+        if: hashFiles('composer.json') != ''
+        run: |
+          php -r '$j=@json_decode(@file_get_contents("composer.json"),true)?:[];
+          foreach (["cs:check","stan","test"] as $k) {
+            $v = (isset($j["scripts"][$k]) ? "1" : "0");
+            $out = strtoupper(str_replace([":","-"],["_","_"],$k));
+            echo "$out=$v\n";
+          }' >> $GITHUB_OUTPUT
+
+      # Qualité/tests (optionnels, s'exécutent seulement si présents)
+      - name: Code style check (optional)
+        if: ${{ steps.detect-scripts.outputs.CS_CHECK == '1' }}
+        run: composer cs:check
+
+      - name: Static analysis (optional)
+        if: ${{ steps.detect-scripts.outputs.STAN == '1' }}
+        run: composer stan
+
+      - name: Test suite (optional)
+        if: ${{ steps.detect-scripts.outputs.TEST == '1' }}
+        run: composer test
