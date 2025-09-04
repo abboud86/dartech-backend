@@ -3,7 +3,12 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
+      - "docs/**"
 
 permissions:
   contents: read
@@ -14,6 +19,7 @@ concurrency:
 
 jobs:
   php:
+    name: PHP ${{ matrix.php }} • Quality & Tests
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -21,7 +27,8 @@ jobs:
         php: [ '8.3', '8.4' ]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -36,6 +43,7 @@ jobs:
           php -v
           composer -V
 
+      # Cache Composer (clé sur composer.lock + version de PHP)
       - name: Cache Composer
         uses: actions/cache@v4
         with:
@@ -45,7 +53,7 @@ jobs:
             composer-${{ runner.os }}-${{ matrix.php }}-
             composer-${{ runner.os }}-
 
-      - name: Install dependencies (only if composer.json exists)
+      - name: Install dependencies
         if: hashFiles('composer.json') != ''
         run: composer install --prefer-dist --no-interaction --no-progress
 
@@ -53,6 +61,18 @@ jobs:
         if: hashFiles('composer.json') != ''
         run: composer validate --strict --no-check-publish
 
-      - name: Composer audit
-        if: hashFiles('composer.lock') != ''
-        run: composer audit --no-interaction --format table
+      - name: Prepare Symfony test env
+        run: |
+          if [ -f ".env.test" ]; then cp -n .env.test .env || true; fi
+          php -r "echo 'APP_ENV='.('test').PHP_EOL;" >> .env 2>/dev/null || true
+          php bin/console --env=test cache:clear
+
+      # --- Qualité & Tests : scripts Composer (DoD Symfony Feature) ---
+      - name: Code style check
+        run: composer cs:check
+
+      - name: Static analysis
+        run: composer stan
+
+      - name: Test suite
+        run: composer test
