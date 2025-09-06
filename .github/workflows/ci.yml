@@ -16,7 +16,6 @@ permissions:
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   php:
     name: PHP ${{ matrix.php }} • Bootstrap only
@@ -25,6 +24,12 @@ jobs:
       fail-fast: false
       matrix:
         php: ['8.3', '8.4']
+
+    # ✅ valeurs sûres pour Symfony en CI (pas de secrets)
+    env:
+      APP_ENV: test
+      DATABASE_URL: "sqlite:///%kernel.project_dir%/var/data_%kernel.environment%.db"
+      SYMFONY_SKIP_AUTO_SCRIPTS: "1"   # évite cache:clear pendant install
 
     steps:
       - name: Checkout
@@ -36,7 +41,8 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: none
           tools: composer
-          extensions: mbstring, intl, xml, zip
+          # ✅ ajoute SQLite pour la DB de CI
+          extensions: mbstring, intl, xml, zip, pdo_sqlite, sqlite3
 
       - name: Show versions
         run: |
@@ -57,7 +63,8 @@ jobs:
 
       - name: Install dependencies (optional)
         if: hashFiles('composer.json') != ''
-        run: composer install --prefer-dist --no-interaction --no-progress
+        # ✅ skip auto-scripts + --no-scripts
+        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
 
       - name: Composer validate (optional)
         if: hashFiles('composer.json') != ''
@@ -85,4 +92,5 @@ jobs:
 
       - name: Test suite (optional)
         if: ${{ steps.detect-scripts.outputs.TEST == '1' }}
-        run: composer test
+        # ✅ on explicite --no-coverage (au lieu de `composer test`)
+        run: php bin/phpunit --no-coverage
