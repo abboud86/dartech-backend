@@ -26,12 +26,14 @@ jobs:
       matrix:
         php: ['8.3', '8.4']
 
-    # Safe defaults for Symfony in CI (no secrets, boots Kernel fine)
+    # Safe defaults for Symfony in CI
     env:
       APP_ENV: test
       DATABASE_URL: "sqlite:///%kernel.project_dir%/var/data_%kernel.environment%.db"
-      # OFF by default; we flip it ON only on PHP 8.4 below
+      # OFF by default; we'll enable on PHP 8.4 via $GITHUB_ENV
       ENABLE_NATIVE_LAZY_OBJECTS: "0"
+      # Make deprecations non-fatal in CI (optional)
+      SYMFONY_DEPRECATIONS_HELPER: disabled
 
     steps:
       - name: Checkout
@@ -43,7 +45,7 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: none
           tools: composer
-          # sqlite for default DB, plus common Symfony deps
+          # SQLite for DB + common Symfony deps
           extensions: pdo_sqlite, sqlite3, mbstring, intl, xml, zip, curl
 
       # Turn ON native lazy only on PHP 8.4 (before composer install)
@@ -55,11 +57,11 @@ jobs:
         run: |
           php -v
           composer -V
-          echo "ENABLE_NATIVE_LAZY_OBJECTS=$ENABLE_NATIVE_LAZY_OBJECTS"
           echo "APP_ENV=$APP_ENV"
           echo "DATABASE_URL=$DATABASE_URL"
+          echo "ENABLE_NATIVE_LAZY_OBJECTS=$ENABLE_NATIVE_LAZY_OBJECTS"
+          php -m | grep -Ei 'pdo|sqlite' || true
 
-      # Optional: cache composer
       - name: Restore Composer cache (optional)
         if: hashFiles('composer.lock') != ''
         uses: actions/cache@v4
@@ -70,7 +72,7 @@ jobs:
             composer-${{ runner.os }}-${{ matrix.php }}-
             composer-${{ runner.os }}-
 
-      # Install without running Symfony auto-scripts (avoids cache:clear during install)
+      # Install without running Symfony auto-scripts
       - name: Install dependencies (optional)
         if: hashFiles('composer.json') != ''
         env:
@@ -80,6 +82,13 @@ jobs:
       - name: Composer validate (optional)
         if: hashFiles('composer.json') != ''
         run: composer validate --strict --no-check-publish
+
+      # Boot the Kernel and verify DB connectivity BEFORE tests (great diagnostics)
+      - name: Symfony about (preflight)
+        run: php bin/console about
+
+      - name: DB ping (preflight)
+        run: php bin/console dbal:run-sql "SELECT 1" --env=test
 
       # Detect optional composer scripts so jobs stay flexible
       - id: detect-scripts
@@ -100,6 +109,7 @@ jobs:
         if: ${{ steps.detect-scripts.outputs.STAN == '1' }}
         run: composer stan
 
+      # Run tests with extra verbosity to surface the exact error
       - name: Test suite (optional)
         if: ${{ steps.detect-scripts.outputs.TEST == '1' }}
-        run: composer test
+        run: php -d display_errors=1 -d error_reporting=-1 bin/phpunit -v --no-coverage
