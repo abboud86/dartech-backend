@@ -40,3 +40,9 @@ dc-restart: ## Redémarre la stack
 .PHONY: dc-validate
 dc-validate: ## Valide la stack (health + SELECT 1 + PING)
 	COMPOSE_FILE=$(COMPOSE_FILE) PROFILE=$(PROFILE) scripts/validate-dev.sh
+
+# ---------- Healthz (HTTP/HTTPS) ----------
+.PHONY: healthz
+healthz: ## Appelle /healthz et pretty-print (HTTPS par défaut, redirections ok)
+	@URL="$${HEALTHZ_URL:-https://127.0.0.1:8000/healthz}"; \
+	curl -fsSL -k "$$URL" | (command -v jq >/dev/null 2>&1 && jq . || python3 -m json.tool)
