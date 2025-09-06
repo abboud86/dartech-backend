@@ -21,8 +21,8 @@ final class HealthController extends AbstractController
         // DB
         try {
             $one = (int) $db->fetchOne('SELECT 1');
-            $checks['db'] = ($one === 1) ? 'ok' : 'fail';
-            if ($checks['db'] !== 'ok') {
+            $checks['db'] = (1 === $one) ? 'ok' : 'fail';
+            if ('ok' !== $checks['db']) {
                 $statusCode = 503;
             }
         } catch (\Throwable $e) {
@@ -34,7 +34,7 @@ final class HealthController extends AbstractController
         // Redis
         try {
             $checks['redis'] = $redis->ping() ? 'ok' : 'fail';
-            if ($checks['redis'] !== 'ok') {
+            if ('ok' !== $checks['redis']) {
                 $statusCode = 503;
             }
         } catch (\Throwable $e) {
@@ -44,7 +44,7 @@ final class HealthController extends AbstractController
         }
 
         return $this->json(
-            ['status' => ($statusCode === 200 ? 'ok' : 'fail'), 'checks' => $checks],
+            ['status' => (200 === $statusCode ? 'ok' : 'fail'), 'checks' => $checks],
             $statusCode
         );
     }
