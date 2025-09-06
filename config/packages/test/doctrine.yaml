@@ -1,0 +1,4 @@
+doctrine:
+  orm:
+    # Always OFF in test to support PHP 8.3 in CI
+    enable_native_lazy_objects: false
