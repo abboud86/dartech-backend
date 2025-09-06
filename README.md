@@ -148,3 +148,12 @@ Politique secrets
 Utilisez .env.local pour vos valeurs locales (non committées).
 
 Pour prod/staging : Symfony Secrets et variables d’environnement (pas de secrets en repo).
+
+### Validation (end-to-end)
+```bash
+make dc-validate
+# ou manuellement :
+# docker compose -f docker-compose.dev.yml --profile dev ps
+# docker exec -it dartech-postgres psql -U dartech -d dartech_dev -c "SELECT 1;"
+# docker exec -it dartech-redis redis-cli PING
+# php bin/console doctrine:query:sql "SELECT 1"

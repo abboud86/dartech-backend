@@ -36,3 +36,7 @@ redis-shell: ## Shell redis-cli dans le conteneur Redis
 dc-restart: ## Redémarre la stack
 	$(DC) down
 	$(DC) up -d
+
+.PHONY: dc-validate
+dc-validate: ## Valide la stack (health + SELECT 1 + PING)
+	COMPOSE_FILE=$(COMPOSE_FILE) PROFILE=$(PROFILE) scripts/validate-dev.sh
