@@ -26,13 +26,13 @@ jobs:
       matrix:
         php: ['8.3', '8.4']
 
-    # Safe defaults for Symfony in CI
+    # Safe defaults for Symfony in CI (no secrets, Kernel can boot)
     env:
       APP_ENV: test
       DATABASE_URL: "sqlite:///%kernel.project_dir%/var/data_%kernel.environment%.db"
-      # OFF by default; we'll enable on PHP 8.4 via $GITHUB_ENV
+      # Default OFF; we will hard-force per PHP version below
       ENABLE_NATIVE_LAZY_OBJECTS: "0"
-      # Make deprecations non-fatal in CI (optional)
+      # Optional: make deprecations non-fatal
       SYMFONY_DEPRECATIONS_HELPER: disabled
 
     steps:
@@ -48,8 +48,12 @@ jobs:
           # SQLite for DB + common Symfony deps
           extensions: pdo_sqlite, sqlite3, mbstring, intl, xml, zip, curl
 
-      # Turn ON native lazy only on PHP 8.4 (before composer install)
-      - name: Enable Doctrine native lazy objects on PHP 8.4
+      # 🔒 HARD-LOCK env per PHP version BEFORE any Symfony command
+      - name: Force native lazy OFF on PHP 8.3
+        if: matrix.php == '8.3'
+        run: echo "ENABLE_NATIVE_LAZY_OBJECTS=0" >> "$GITHUB_ENV"
+
+      - name: Force native lazy ON on PHP 8.4
         if: matrix.php == '8.4'
         run: echo "ENABLE_NATIVE_LAZY_OBJECTS=1" >> "$GITHUB_ENV"
 
@@ -62,17 +66,7 @@ jobs:
           echo "ENABLE_NATIVE_LAZY_OBJECTS=$ENABLE_NATIVE_LAZY_OBJECTS"
           php -m | grep -Ei 'pdo|sqlite' || true
 
-      - name: Restore Composer cache (optional)
-        if: hashFiles('composer.lock') != ''
-        uses: actions/cache@v4
-        with:
-          path: ~/.composer/cache/files
-          key: composer-${{ runner.os }}-${{ matrix.php }}-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            composer-${{ runner.os }}-${{ matrix.php }}-
-            composer-${{ runner.os }}-
-
-      # Install without running Symfony auto-scripts
+      # Composer install without auto-scripts (avoid cache:clear during install)
       - name: Install dependencies (optional)
         if: hashFiles('composer.json') != ''
         env:
@@ -83,14 +77,14 @@ jobs:
         if: hashFiles('composer.json') != ''
         run: composer validate --strict --no-check-publish
 
-      # Boot the Kernel and verify DB connectivity BEFORE tests (great diagnostics)
+      # 🔎 Preflight — fail early with clear messages if something is off
       - name: Symfony about (preflight)
         run: php bin/console about
 
       - name: DB ping (preflight)
         run: php bin/console dbal:run-sql "SELECT 1" --env=test
 
-      # Detect optional composer scripts so jobs stay flexible
+      # Detect optional composer scripts (so workflow works even if scripts are absent)
       - id: detect-scripts
         if: hashFiles('composer.json') != ''
         run: |
@@ -109,7 +103,6 @@ jobs:
         if: ${{ steps.detect-scripts.outputs.STAN == '1' }}
         run: composer stan
 
-      # Run tests with extra verbosity to surface the exact error
       - name: Test suite (optional)
         if: ${{ steps.detect-scripts.outputs.TEST == '1' }}
         run: php -d display_errors=1 -d error_reporting=-1 bin/phpunit -v --no-coverage
