@@ -25,11 +25,12 @@ jobs:
       fail-fast: false
       matrix:
         php: ['8.3', '8.4']
+
+    # Safe defaults for Symfony in CI (no secrets, boots Kernel fine)
     env:
       APP_ENV: test
-      # SQLite par défaut en CI pour éviter les secrets
       DATABASE_URL: "sqlite:///%kernel.project_dir%/var/data_%kernel.environment%.db"
-      # OFF par défaut (sera activé via $GITHUB_ENV si PHP=8.4)
+      # OFF by default; we flip it ON only on PHP 8.4 below
       ENABLE_NATIVE_LAZY_OBJECTS: "0"
 
     steps:
@@ -42,19 +43,23 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: none
           tools: composer
-          extensions: mbstring, intl, xml, zip
+          # sqlite for default DB, plus common Symfony deps
+          extensions: pdo_sqlite, sqlite3, mbstring, intl, xml, zip, curl
 
+      # Turn ON native lazy only on PHP 8.4 (before composer install)
       - name: Enable Doctrine native lazy objects on PHP 8.4
         if: matrix.php == '8.4'
         run: echo "ENABLE_NATIVE_LAZY_OBJECTS=1" >> "$GITHUB_ENV"
 
-      - name: Show versions
+      - name: Show versions & env
         run: |
           php -v
           composer -V
+          echo "ENABLE_NATIVE_LAZY_OBJECTS=$ENABLE_NATIVE_LAZY_OBJECTS"
+          echo "APP_ENV=$APP_ENV"
+          echo "DATABASE_URL=$DATABASE_URL"
 
-      # === Tout ce qui suit est OPTIONNEL et ne s'exécute que si les fichiers existent ===
-
+      # Optional: cache composer
       - name: Restore Composer cache (optional)
         if: hashFiles('composer.lock') != ''
         uses: actions/cache@v4
@@ -65,19 +70,27 @@ jobs:
             composer-${{ runner.os }}-${{ matrix.php }}-
             composer-${{ runner.os }}-
 
+      # Install without running Symfony auto-scripts (avoids cache:clear during install)
       - name: Install dependencies (optional)
         if: hashFiles('composer.json') != ''
-        run: composer install --prefer-dist --no-interaction --no-progress
+        env:
+          SYMFONY_SKIP_AUTO_SCRIPTS: "1"
+        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
 
       - name: Composer validate (optional)
         if: hashFiles('composer.json') != ''
         run: composer validate --strict --no-check-publish
 
-      # Détection des scripts (optionnel)
+      # Detect optional composer scripts so jobs stay flexible
       - id: detect-scripts
         if: hashFiles('composer.json') != ''
         run: |
-          php -r '$j=@json_decode(@file_get_contents("composer.json"),true)?:[]; foreach (["cs:check","stan","test"] as $k) { $v = (isset($j["scripts"][$k]) ? "1" : "0"); $out = strtoupper(str_replace([":","-"],["_","_"],$k)); echo "$out=$v\n"; }' >> $GITHUB_OUTPUT
+          php -r '$j=@json_decode(@file_get_contents("composer.json"),true)?:[];
+          foreach (["cs:check","stan","test"] as $k) {
+            $v = (isset($j["scripts"][$k]) ? "1" : "0");
+            $out = strtoupper(str_replace([":","-"],["_","_"],$k));
+            echo "$out=$v\n";
+          }' >> $GITHUB_OUTPUT
 
       - name: Code style check (optional)
         if: ${{ steps.detect-scripts.outputs.CS_CHECK == '1' }}
