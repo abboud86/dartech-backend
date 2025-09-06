@@ -94,3 +94,57 @@ php bin/console dbal:run-sql "SELECT 1"
 ## Notes
 - Env dev/test via `.env.local` / `.env.test.local` (jamais de secrets en git).
 - Les dépréciations Doctrine sont neutralisées **en dev** via `config/packages/dev/doctrine.yaml`.
+
+## Local dev — Docker Compose (Postgres 16 + Redis 7)
+
+### Prérequis
+- Docker & Docker Compose v2
+- Make (optionnel mais recommandé)
+
+### Démarrer/arrêter (profil `dev`)
+```bash
+make dc-up        # démarre postgres + redis
+make dc-ps        # statut (doit afficher healthy)
+make dc-logs      # logs suivis
+make dc-restart   # restart rapide
+make dc-down      # stop (conserve volumes)
+make dc-down-v    # stop + supprime volumes (⚠ perte données locales)
+Services & ports
+Postgres: localhost:5432 (db: dartech_dev, user/pass: dartech)
+
+Redis: localhost:6379
+
+Variables d’environnement (exemples)
+Copiez .env.example vers vos fichiers locaux non committés :
+
+bash
+Copy code
+cp .env.example .env.local
+DATABASE_URL="postgresql://dartech:dartech@127.0.0.1:5432/dartech_dev?serverVersion=16&charset=utf8"
+
+REDIS_URL="redis://127.0.0.1:6379"
+
+Ne commitez jamais vos .env.local (Symfony lit automatiquement .env.local en dev).
+
+Troubleshooting
+Ports occupés : modifiez les mappings dans docker-compose.dev.yml (ex. 15432:5432, 16379:6379) puis make dc-restart.
+
+Reset complet : make dc-down-v puis make dc-up.
+
+Redis "Memory overcommit" (warning kernel) :
+
+bash
+Copy code
+sudo sysctl vm.overcommit_memory=1
+# Perso : echo 'vm.overcommit_memory=1' | sudo tee /etc/sysctl.d/99-redis-overcommit.conf && sudo sysctl -p /etc/sysctl.d/99-redis-overcommit.conf
+Vérifs santé rapides :
+
+bash
+Copy code
+make dc-ps
+docker exec -it dartech-postgres psql -U dartech -d dartech_dev -c "SELECT 1;"
+docker exec -it dartech-redis redis-cli PING
+Politique secrets
+Utilisez .env.local pour vos valeurs locales (non committées).
+
+Pour prod/staging : Symfony Secrets et variables d’environnement (pas de secrets en repo).
