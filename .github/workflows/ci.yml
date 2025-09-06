@@ -27,8 +27,11 @@ jobs:
         php: ['8.3', '8.4']
     env:
       APP_ENV: test
+      # SQLite par défaut en CI pour éviter les secrets
       DATABASE_URL: "sqlite:///%kernel.project_dir%/var/data_%kernel.environment%.db"
-      ENABLE_NATIVE_LAZY_OBJECTS: ${{ matrix.php == '8.4' && '1' || '0' }}
+      # OFF par défaut (sera activé via $GITHUB_ENV si PHP=8.4)
+      ENABLE_NATIVE_LAZY_OBJECTS: "0"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,6 +43,10 @@ jobs:
           coverage: none
           tools: composer
           extensions: mbstring, intl, xml, zip
+
+      - name: Enable Doctrine native lazy objects on PHP 8.4
+        if: matrix.php == '8.4'
+        run: echo "ENABLE_NATIVE_LAZY_OBJECTS=1" >> "$GITHUB_ENV"
 
       - name: Show versions
         run: |
@@ -70,14 +77,8 @@ jobs:
       - id: detect-scripts
         if: hashFiles('composer.json') != ''
         run: |
-          php -r '$j=@json_decode(@file_get_contents("composer.json"),true)?:[];
-          foreach (["cs:check","stan","test"] as $k) {
-            $v = (isset($j["scripts"][$k]) ? "1" : "0");
-            $out = strtoupper(str_replace([":","-"],["_","_"],$k));
-            echo "$out=$v\n";
-          }' >> $GITHUB_OUTPUT
+          php -r '$j=@json_decode(@file_get_contents("composer.json"),true)?:[]; foreach (["cs:check","stan","test"] as $k) { $v = (isset($j["scripts"][$k]) ? "1" : "0"); $out = strtoupper(str_replace([":","-"],["_","_"],$k)); echo "$out=$v\n"; }' >> $GITHUB_OUTPUT
 
-      # Qualité/tests (optionnels, s'exécutent seulement si présents)
       - name: Code style check (optional)
         if: ${{ steps.detect-scripts.outputs.CS_CHECK == '1' }}
         run: composer cs:check
