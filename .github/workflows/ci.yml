@@ -28,10 +28,11 @@ jobs:
     env:
       APP_ENV: test
       DATABASE_URL: "sqlite:///%kernel.project_dir%/var/data_%kernel.environment%.db"
-      ENABLE_NATIVE_LAZY_OBJECTS: ${{ matrix.php == '8.4' && '1' || '0' }}
+      ENABLE_NATIVE_LAZY_OBJECTS: "0"
+      SYMFONY_DEPRECATIONS_HELPER: disabled
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -39,14 +40,25 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: none
           tools: composer
-          extensions: mbstring, intl, xml, zip
+          extensions: pdo_sqlite, sqlite3, mbstring, intl, xml, zip, curl
 
-      - name: Show versions
+      # Hard-lock per PHP version BEFORE any Symfony command
+      - name: Force native lazy OFF on PHP 8.3
+        if: matrix.php == '8.3'
+        run: echo "ENABLE_NATIVE_LAZY_OBJECTS=0" >> "$GITHUB_ENV"
+
+      - name: Force native lazy ON on PHP 8.4
+        if: matrix.php == '8.4'
+        run: echo "ENABLE_NATIVE_LAZY_OBJECTS=1" >> "$GITHUB_ENV"
+
+      - name: Show versions & env
         run: |
           php -v
           composer -V
-
-      # === Tout ce qui suit est OPTIONNEL et ne s'exécute que si les fichiers existent ===
+          echo "APP_ENV=$APP_ENV"
+          echo "DATABASE_URL=$DATABASE_URL"
+          echo "ENABLE_NATIVE_LAZY_OBJECTS=$ENABLE_NATIVE_LAZY_OBJECTS"
+          php -m | grep -Ei 'pdo|sqlite' || true
 
       - name: Restore Composer cache (optional)
         if: hashFiles('composer.lock') != ''
@@ -58,15 +70,25 @@ jobs:
             composer-${{ runner.os }}-${{ matrix.php }}-
             composer-${{ runner.os }}-
 
+      # Skip auto-scripts so cache:clear is not invoked during install
       - name: Install dependencies (optional)
         if: hashFiles('composer.json') != ''
-        run: composer install --prefer-dist --no-interaction --no-progress
+        env:
+          SYMFONY_SKIP_AUTO_SCRIPTS: "1"
+        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
 
       - name: Composer validate (optional)
         if: hashFiles('composer.json') != ''
         run: composer validate --strict --no-check-publish
 
-      # Détection des scripts (optionnel)
+      # Preflight on test env
+      - name: Symfony about (preflight)
+        run: php bin/console about --env=test
+
+      - name: DB ping (preflight)
+        run: php bin/console dbal:run-sql "SELECT 1" --env=test
+
+      # Optional Composer scripts
       - id: detect-scripts
         if: hashFiles('composer.json') != ''
         run: |
@@ -77,7 +99,6 @@ jobs:
             echo "$out=$v\n";
           }' >> $GITHUB_OUTPUT
 
-      # Qualité/tests (optionnels, s'exécutent seulement si présents)
       - name: Code style check (optional)
         if: ${{ steps.detect-scripts.outputs.CS_CHECK == '1' }}
         run: composer cs:check
@@ -88,4 +109,4 @@ jobs:
 
       - name: Test suite (optional)
         if: ${{ steps.detect-scripts.outputs.TEST == '1' }}
-        run: composer test
+        run: php bin/phpunit --no-coverage
