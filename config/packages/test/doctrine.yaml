@@ -1,0 +1,4 @@
+doctrine:
+  dbal:
+    # Ajoute _test (et éventuellement TEST_TOKEN si tu l'utilises en CI parallèle)
+    dbname_suffix: '_test%env(default::TEST_TOKEN)%'
