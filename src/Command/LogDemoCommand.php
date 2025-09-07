@@ -38,7 +38,7 @@ final class LogDemoCommand extends Command
             $context = ['raw' => $contextJson];
         }
 
-        $levels = ['debug','info','notice','warning','error','critical','alert','emergency'];
+        $levels = ['debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency'];
         if (!in_array($level, $levels, true)) {
             $level = 'info';
         }
