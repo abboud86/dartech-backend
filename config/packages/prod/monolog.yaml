@@ -1,0 +1,14 @@
+monolog:
+  handlers:
+    main:
+      type: fingers_crossed
+      action_level: error
+      handler: nested
+      channels: ["!event", "!doctrine", "!console", "!deprecation"]
+
+    nested:
+      type: stream
+      path: "php://stderr"
+      level: info
+      formatter: 'monolog.formatter.json'
+      channels: ["!event", "!doctrine", "!console", "!deprecation"]
