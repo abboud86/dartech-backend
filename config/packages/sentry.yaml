@@ -1,0 +1,31 @@
+sentry:
+  dsn: '%env(SENTRY_DSN)%'
+  # On laisse Monolog piloter l’envoi (évite doublons)
+  register_error_listener: false
+  register_error_handler: false
+  options:
+    environment: '%kernel.environment%'
+    release: '%env(APP_VERSION)%'
+
+# Breadcrumbs via Monolog (service selon la doc)
+services:
+  Sentry\Monolog\BreadcrumbHandler:
+    arguments:
+      - '@Sentry\State\HubInterface'
+      - !php/const Monolog\Logger::INFO
+
+# Handlers Monolog : breadcrumbs (info+) + events (error+)
+monolog:
+  handlers:
+    sentry_breadcrumbs:
+      type: service
+      id: Sentry\Monolog\BreadcrumbHandler
+      channels: ["!event", "!doctrine", "!console", "!deprecation"]
+
+    sentry:
+      type: sentry
+      level: !php/const Monolog\Logger::ERROR
+      hub_id: Sentry\State\HubInterface
+      fill_extra_context: true
+      process_psr_3_messages: false
+      channels: ["!event", "!doctrine", "!console", "!deprecation"]
