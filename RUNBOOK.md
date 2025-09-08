@@ -68,3 +68,48 @@ DB refusée : DATABASE_URL incorrecte ou DB non créée.
 Logs multi-lignes : filtrer uniquement les lignes JSON (grep -E '^\{' | tail -n 1).
 
 /healthz redirige : serveur Symfony local, utiliser l’URL en https sur 127.0.0.1:8000.
+
+RUNBOOK — RequestId Observability
+Vérifier en production
+
+Header sortant
+
+curl -is https://<host>/healthz | grep -i '^X-Request-Id:'
+
+
+Propagation fournie
+
+curl -is https://<host>/healthz -H 'X-Request-Id: ops-check-123' | grep -i '^X-Request-Id:'
+
+
+Logs JSON : rechercher extra.request_id dans app_json (ou stack ELK).
+
+Sentry : filtrer par tag request_id:ops-check-123.
+
+Tracer une requête
+
+À partir d’un header : chercher extra.request_id:"<valeur>" côté logs.
+
+À partir d’un event Sentry : ouvrir l’event → Tags → request_id → pivoter vers logs.
+
+Nginx (pass-through du header)
+
+Veiller à ne pas supprimer X-Request-Id côté proxy :
+
+proxy_set_header X-Request-Id $http_x_request_id;
+
+
+(Si absent côté client, l’app génère un UUIDv4 en entrée de requête.)
+
+Paramétrage / Feature flags
+
+app.request_id.trust_client_id = true|false : désactiver la confiance client si besoin de forcer uniquement UUID.
+
+Pannes fréquentes
+
+Pas de extra.request_id : le log survient après la réponse (par ex. “Disconnecting” Doctrine). Faire un log applicatif pendant la requête pour vérifier.
+
+Pas de header sortant : vérifier que le subscriber est bien autowiré et que le vhost pointe sur public/.
+
+Sentry sans tag : vérifier SENTRY_DSN et l’activation du SDK ; sinon, c’est normal (no-op).
+

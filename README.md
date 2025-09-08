@@ -117,3 +117,43 @@ Connexion DB échouée : vérifier DATABASE_URL et que la base existe (dartech_d
 
 Runbook (ops)
 Voir RUNBOOK.md pour les opérations (prod), Sentry, migrations, et checks.
+
+---
+
+## Request Correlation (X-Request-Id)
+
+**But** : corréler une requête HTTP dans toute la stack (headers ↔ logs ↔ Sentry).
+
+### Règles
+- Entrant : on lit `X-Request-Id` (ou `X-Correlation-Id`). Si absent/invalid → génération **UUIDv4**.
+- Sortant : on renvoie toujours `X-Request-Id` dans la réponse.
+- Logs : Monolog ajoute `extra.request_id`.
+- Sentry : tag `request_id`.
+
+### Smokes rapides
+```bash
+# génération auto
+curl -is http://<host>/healthz | grep -i '^X-Request-Id:'
+
+# réutilisation fournie
+curl -is http://<host>/healthz -H 'X-Request-Id: foo-123' | grep -i '^X-Request-Id:'
+Journalisation (extrait JSON)
+json
+Copy code
+{
+  "message": "smoke-log",
+  "channel": "app",
+  "level": 200,
+  "extra": { "request_id": "foo-123" }
+}
+Paramètres (config/services.yaml)
+app.request_id.header = "X-Request-Id"
+
+app.request_id.synonyms = ["X-Correlation-Id"]
+
+app.request_id.trust_client_id = true (accepter l’ID client s’il est sûr)
+
+Notes
+En CLI (pas de requête), extra.request_id peut être absent — normal.
+
+SENTRY_DSN vide ⇒ taggage ignoré sans erreur.
