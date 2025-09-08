@@ -46,3 +46,9 @@ dc-validate: ## Valide la stack (health + SELECT 1 + PING)
 healthz: ## Appelle /healthz et pretty-print (HTTPS par défaut, redirections ok)
 	@URL="$${HEALTHZ_URL:-https://127.0.0.1:8000/healthz}"; \
 	curl -fsSL -k "$$URL" | (command -v jq >/dev/null 2>&1 && jq . || python3 -m json.tool)
+
+.PHONY: prod-smoke
+prod-smoke:
+	: > /tmp/prod.json.log
+	APP_ENV=prod APP_DEBUG=0 php bin/console app:log-demo "smoke prod" --level=error 2>> /tmp/prod.json.log
+	grep -E '^\s*\{' /tmp/prod.json.log | tail -n 1 | python3 -m json.tool
