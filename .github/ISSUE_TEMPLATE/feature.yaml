@@ -1,0 +1,92 @@
+name: "Feature (DarTech SOP)"
+description: "New feature/subtask. One PR = one subtask. Follow Symfony docs & SOP."
+title: "feat(P{phase}-{lot}-{slice}): <short summary>"
+labels: ["type:feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Guardrails:** 1 PR = 1 subtask · CI (`cs:check`, `stan`, `test`) must be green · Follow official Symfony docs.
+  - type: input
+    id: cu
+    attributes:
+      label: ClickUp Subtask ID or URL
+      description: "Example: CU-ABC123 or full ClickUp link."
+      placeholder: "CU-XXXX"
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      options: ["P0","P1","P2","P3","P4","P5","P6"]
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options: ["backend","web","mobile","db","ci","infra"]
+    validations:
+      required: true
+  - type: dropdown
+    id: milestone
+    attributes:
+      label: Milestone
+      description: "Select planned milestone."
+      options: ["Alpha","Beta","V1"]
+    validations:
+      required: true
+  - type: dropdown
+    id: dbchange
+    attributes:
+      label: DB Change
+      options: ["No","Yes"]
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Context / Why
+      description: "Business value, risk reduced, compliance."
+      placeholder: "Why this matters…"
+    validations:
+      required: true
+  - type: textarea
+    id: ac
+    attributes:
+      label: Acceptance Criteria
+      description: "Binary, testable."
+      placeholder: |
+        - [ ] AC1 …
+        - [ ] AC2 …
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: tech
+    attributes:
+      label: Tech Notes
+      description: "Key classes/config, edge cases, links to official docs."
+      placeholder: "Security firewall, authenticator, rate_limiter, etc."
+  - type: input
+    id: branch
+    attributes:
+      label: Expected branch name
+      description: "Use convention: ^(feat|fix|chore|docs)/p\\d+-\\d{2}-\\d{2}-[a-z0-9]+(-[a-z0-9]+)*$"
+      placeholder: "feat/p0-06-01-entrypoint-json"
+  - type: checkboxes
+    id: labeling
+    attributes:
+      label: Labels & hygiene
+      options:
+        - label: "I will add `scope:*` and `phase:p*` labels after creating the issue."
+          required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence to provide at closure
+      value: |
+        - PR link (merged, Squash)
+        - CI run (green)
+        - Screenshots/logs (e.g., cURL), test path(s)

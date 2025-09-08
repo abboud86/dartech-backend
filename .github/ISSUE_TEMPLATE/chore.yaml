@@ -1,0 +1,84 @@
+name: "Chore (DarTech SOP)"
+description: "Maintenance/CI/infra/docs tasks with measurable outcome."
+title: "chore: <short summary>"
+labels: ["type:chore"]
+body:
+  - type: input
+    id: cu
+    attributes:
+      label: ClickUp Task/Subtask
+      placeholder: "CU-XXXX"
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options: ["backend","web","mobile","db","ci","infra","docs"]
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Context / Why
+      placeholder: "Debt reduction, reliability, performance, compliance…"
+    validations:
+      required: true
+  - type: textarea
+    id: work
+    attributes:
+      label: Planned work items
+      placeholder: |
+        - [ ] Item 1
+        - [ ] Item 2
+      render: markdown
+  - type: textarea
+    id: success
+    attributes:
+      label: Success criteria / Evidence to close
+      value: |
+        - [ ] Outcome verified
+        - [ ] CI green
+        - [ ] Evidence attached (links, screenshots)
+name: "Chore (DarTech SOP)"
+description: "Maintenance/CI/infra/docs tasks with measurable outcome."
+title: "chore: <short summary>"
+labels: ["type:chore"]
+body:
+  - type: input
+    id: cu
+    attributes:
+      label: ClickUp Task/Subtask
+      placeholder: "CU-XXXX"
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options: ["backend","web","mobile","db","ci","infra","docs"]
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Context / Why
+      placeholder: "Debt reduction, reliability, performance, compliance…"
+    validations:
+      required: true
+  - type: textarea
+    id: work
+    attributes:
+      label: Planned work items
+      placeholder: |
+        - [ ] Item 1
+        - [ ] Item 2
+      render: markdown
+  - type: textarea
+    id: success
+    attributes:
+      label: Success criteria / Evidence to close
+      value: |
+        - [ ] Outcome verified
+        - [ ] CI green
+        - [ ] Evidence attached (links, screenshots)
