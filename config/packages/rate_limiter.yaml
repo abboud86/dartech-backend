@@ -1,0 +1,14 @@
+framework:
+  rate_limiter:
+    # Limiteur local (couple username+IP) : 5 tentatives / 1 minute
+    username_ip_login:
+      policy: token_bucket
+      limit: 5
+      rate:
+        interval: '1 minute'
+
+    # Limiteur global (IP seule) : 50 tentatives / 15 minutes
+    ip_login:
+      policy: sliding_window
+      limit: 50
+      interval: '15 minutes'
