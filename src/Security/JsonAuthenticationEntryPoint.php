@@ -17,9 +17,9 @@ final class JsonAuthenticationEntryPoint implements AuthenticationEntryPointInte
 
         return new JsonResponse([
             'error' => [
-                'code'       => 401,
-                'message'    => 'Authentication required',
-                'details'    => 'Please authenticate to access this resource.',
+                'code' => 401,
+                'message' => 'Authentication required',
+                'details' => 'Please authenticate to access this resource.',
                 'request_id' => $requestId,
             ],
         ], 401);
