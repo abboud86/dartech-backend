@@ -30,3 +30,12 @@ services:
   App\Monolog\RequestIdProcessor:
     tags:
       - { name: monolog.processor }
+ 
+  App\Security\ApiAuthenticationFailureHandler: ~
+
+  app.login_rate_limiter:
+    class: Symfony\Component\Security\Http\RateLimiter\DefaultLoginRateLimiter
+    arguments:
+      $globalFactory: '@limiter.ip_login'          # IP seule
+      $localFactory: '@limiter.username_ip_login'  # username+IP
+      $secret: '%kernel.secret%'
