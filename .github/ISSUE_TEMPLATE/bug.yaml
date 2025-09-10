@@ -1,82 +1,22 @@
-name: "Bug (DarTech SOP)"
-description: "Report a defect with clear repro & environment."
-title: "fix: <short summary>"
-labels: ["type:bug","bug"]
+name: "Bug report"
+description: "Rapport de bug"
+title: "[Bug]: "
+labels: ["type:bug"]
 body:
-  - type: checkboxes
-    id: dup
-    attributes:
-      label: Pre-check
-      options:
-        - label: "I searched existing issues; this isn’t a duplicate."
-          required: true
-  - type: input
-    id: cu
-    attributes:
-      label: ClickUp Task/Subtask (optional)
-      placeholder: "CU-XXXX"
-  - type: dropdown
-    id: phase
-    attributes:
-      label: Phase
-      options: ["P0","P1","P2","P3","P4","P5","P6"]
+  - type: textarea
+    id: steps
+    attributes: { label: "Steps to reproduce", placeholder: "1. … 2. …" }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: "Expected behavior" }
+    validations: { required: true }
+  - type: textarea
+    id: actual
+    attributes: { label: "Actual behavior / logs" }
+    validations: { required: true }
   - type: dropdown
     id: scope
     attributes:
-      label: Scope
+      label: "Scope"
       options: ["backend","web","mobile","db","ci","infra"]
-    validations:
-      required: true
-  - type: dropdown
-    id: severity
-    attributes:
-      label: Severity
-      options: ["S1 - Critical","S2 - Major","S3 - Minor","S4 - Trivial"]
-    validations:
-      required: true
-  - type: textarea
-    id: repro
-    attributes:
-      label: Steps to Reproduce
-      placeholder: |
-        1) …
-        2) …
-        3) …
-    validations:
-      required: true
-  - type: textarea
-    id: expected
-    attributes:
-      label: Expected
-    validations:
-      required: true
-  - type: textarea
-    id: actual
-    attributes:
-      label: Actual
-    validations:
-      required: true
-  - type: textarea
-    id: logs
-    attributes:
-      label: Relevant logs / console output
-      render: shell
-  - type: textarea
-    id: env
-    attributes:
-      label: Environment
-      value: |
-        - OS:
-        - PHP:
-        - Symfony:
-        - Browser (if web):
-        - Commit SHA:
-  - type: textarea
-    id: ac
-    attributes:
-      label: Acceptance Criteria to close
-      value: |
-        - [ ] Repro fixed
-        - [ ] Tests added/updated
-        - [ ] CI green
-        - [ ] Evidence attached (screenshots/logs)

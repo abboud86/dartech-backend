@@ -1,22 +1,13 @@
-## Résumé
-Décris brièvement le changement.
+### Résumé
+Closes #<issue_id> <!-- mots-clés "closes/fixes/resolves" reconnus par GitHub -->
 
-## Champs projet
-- **DB Change**: <!-- Yes | No -->
-- **Milestone**: <!-- Alpha | Beta | V1 -->
-- **ClickUp**: <!-- CU-XXXX -->
-- **Labels**: `type:*` · `scope:*` · `phase:p*`
+### Métadonnées
+Phase: P? · Type: feature/bug/chore/docs · Scope: backend/web/mobile/db/ci/infra  
+DB Change: Yes/No · Milestone: Alpha/Beta/V1
 
-## Security impact
-- [ ] Aucun
-- [ ] Impact potentiel (détailler)
-
-## Checklist qualité
-- [ ] Convention branche respectée (`feat|fix|chore|docs/pX-YY-ZZ-*`)
-- [ ] CI verte (PHP 8.3/8.4)
-- [ ] ≥ 1 review (CODEOWNERS si défini)
-- [ ] DoD Symfony Feature (si code)
-- [ ] Docs/changelog si nécessaire
-
-## Liens
-Closes #<issue_id>
+### Contrôles Qualité (Symfony)
+- [ ] CS ok (PHP-CS-Fixer **@Symfony**): `composer cs:check`
+- [ ] Static analysis ok (PHPStan): `composer stan`
+- [ ] Tests ok (PHPUnit): `composer test`
+- [ ] Conventions de nommage branche/commit (Squash & Merge)
+- [ ] Champs ClickUp à jour (Phase/Type/Scope/DB Change/PR URL/Milestone)
