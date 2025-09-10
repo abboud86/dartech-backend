@@ -104,6 +104,7 @@
         }
     },
     "require-dev": {
+        "doctrine/doctrine-fixtures-bundle": "^4.1",
         "friendsofphp/php-cs-fixer": "^3.87.1",
         "phpstan/phpstan": "^1.12.28",
         "phpunit/phpunit": "^12.3.8",
