@@ -1,7 +1,9 @@
+# config/packages/test/security.yaml
 security:
   firewalls:
     main:
-      # En test: throttling natif, pas de "limiter:" custom
+      # IMPORTANT: on neutralise le service custom
       login_throttling:
+        limiter: null        # <- écrase la valeur héritée
         max_attempts: 5
         interval: '1 minute'
