@@ -1,0 +1,7 @@
+security:
+  firewalls:
+    main:
+      # En test: throttling natif, pas de "limiter:" custom
+      login_throttling:
+        max_attempts: 5
+        interval: '1 minute'
