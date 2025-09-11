@@ -13,15 +13,15 @@ final class LoginThrottlingTest extends WebTestCase
     {
         // Boot via client AVANT d'accéder au container
         $client = static::createClient();
-        // On garde l'état en mémoire pour les 6 requêtes (ArrayAdapter en test)
+        // Garder l'état en mémoire pour les 6 requêtes (ArrayAdapter en test)
         $client->disableReboot();
 
-        // Purge explicite du pool pour un test déterministe à chaque run
+        // Purge explicite du pool pour un test déterministe
         $pool = static::getContainer()->get('cache.rate_limiter');
         \assert($pool instanceof CacheItemPoolInterface);
         $pool->clear();
 
-        // IP fixe (clé globale IP stable)
+        // IP fixe (clé globale stable)
         $server = [
             'REMOTE_ADDR' => '192.168.11.133',
             'HTTP_X_REQUEST_ID' => '',
