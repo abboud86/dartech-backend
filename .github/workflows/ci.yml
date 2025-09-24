@@ -15,6 +15,5 @@ jobs:
           php-version: '8.4'
           coverage: none
           tools: composer:v2
-          cache: 'composer'
       - name: Validate composer.json
         run: composer validate --no-check-all --no-check-publish
