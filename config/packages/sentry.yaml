@@ -1,0 +1,24 @@
+sentry:
+  dsn: '%env(SENTRY_DSN)%'
+  # Quand on passe par Monolog pour envoyer les erreurs, on désactive l'error-listener pour éviter les doublons:
+  register_error_listener: false
+  register_error_handler: false
+
+services:
+  # Breadcrumbs Monolog (conseillé): enregistre les logs INFO+ comme breadcrumbs
+  Sentry\Monolog\BreadcrumbHandler:
+    arguments:
+      - '@Sentry\State\HubInterface'
+      - !php/const Monolog\Logger::INFO
+
+monolog:
+  handlers:
+    sentry_breadcrumbs:
+      type: service
+      id: Sentry\Monolog\BreadcrumbHandler
+    sentry:
+      type: sentry
+      level: !php/const Monolog\Logger::ERROR
+      hub_id: Sentry\State\HubInterface
+      fill_extra_context: true
+      process_psr_3_messages: false
