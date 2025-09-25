@@ -7,6 +7,8 @@ security:
     main:
       stateless: true
       entry_point: App\Security\JsonUnauthorizedEntryPoint
+      custom_authenticators:
+        - App\Security\TokenAuthenticator
 
   access_control:
     - { path: ^/healthz$, roles: PUBLIC_ACCESS }
