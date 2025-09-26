@@ -17,8 +17,8 @@ final class TokenAuthenticator extends AbstractAuthenticator
 {
     public function supports(Request $request): ?bool
     {
-        $header = $request->headers->get('Authorization', '');
-        return str_starts_with($header, 'Bearer ');
+       if ($request->isMethod('OPTIONS')) return false; // ignore toujours les préflights
+       return $request->headers->has('Authorization'); 
     }
 
     public function authenticate(Request $request): Passport

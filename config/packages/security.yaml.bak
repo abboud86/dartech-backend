@@ -1,0 +1,18 @@
+security:
+  firewalls:
+    dev:
+      pattern: ^/(?:_(?:profiler|wdt)|assets/(?:css|images|js))/
+      security: false
+
+    main:
+      stateless: true
+      entry_point: App\Security\JsonUnauthorizedEntryPoint
+      login_throttling:
+        max_attempts: 5
+        interval: '1 minute'
+      custom_authenticators:
+        - App\Security\TokenAuthenticator 
+
+  access_control:
+    - { path: ^/healthz$, roles: PUBLIC_ACCESS }
+    - { path: ^/v1,       roles: IS_AUTHENTICATED_FULLY } # Ensure this role matches your access control policies
