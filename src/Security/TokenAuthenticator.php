@@ -16,9 +16,11 @@ use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPasspor
 
 final class TokenAuthenticator extends AbstractAuthenticator
 {
-    public function __construct(private LoggerInterface $securityLogger) {}
+    public function __construct(private LoggerInterface $securityLogger)
+    {
+    }
 
-    public function supports(Request $request): ?bool
+    public function supports(Request $request): bool
     {
         // Force l’authenticator pour toutes les routes /v1/* (avec ou sans header)
         if (str_starts_with($request->getPathInfo(), '/v1/')) {
@@ -26,14 +28,15 @@ final class TokenAuthenticator extends AbstractAuthenticator
         }
         // Sinon, si un header Bearer est présent, on gère aussi
         $header = $request->headers->get('Authorization', '');
+
         return str_starts_with($header, 'Bearer ');
     }
 
     public function authenticate(Request $request): Passport
     {
         $header = $request->headers->get('Authorization', '');
-        $token  = str_starts_with($header, 'Bearer ') ? trim(substr($header, 7)) : '';
-        $valid  = $_ENV['API_DEV_TOKEN'] ?? 'dev-token';
+        $token = str_starts_with($header, 'Bearer ') ? trim(substr($header, 7)) : '';
+        $valid = $_ENV['API_DEV_TOKEN'] ?? 'dev-token';
 
         if ($token !== $valid) {
             throw new AuthenticationException('Invalid bearer token');
@@ -51,12 +54,12 @@ final class TokenAuthenticator extends AbstractAuthenticator
         return null; // continuer la requête normalement
     }
 
-    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
+    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
         // Log sécurité (channel=security) pour tracer les 401 côté authenticator
         $this->securityLogger->warning('auth_failure', [
-            'path'   => $request->getPathInfo(),
-            'ip'     => $request->getClientIp(),
+            'path' => $request->getPathInfo(),
+            'ip' => $request->getClientIp(),
             'reason' => $exception->getMessage(),
             'has_header' => $request->headers->has('Authorization'),
         ]);
