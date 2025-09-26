@@ -19,7 +19,7 @@ final class SecurityTest extends WebTestCase
             'Content-Type must be application/json; charset=UTF-8'
         );
 
-        $data = json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        $data = json_decode($response->getContent(), true, flags: \JSON_THROW_ON_ERROR);
         $this->assertIsArray($data);
         $this->assertArrayHasKey('error', $data);
         $this->assertSame('unauthorized', $data['error']);
@@ -37,9 +37,9 @@ final class SecurityTest extends WebTestCase
 
         // Limiter côté sécurité (id peut varier selon version) → on accepte plusieurs alias connus
         $hasLimiter =
-            $container->has('security.login_throttling.main.limiter') ||
-            $container->has('security.listener.login_throttling.request_rate_limiter') ||
-            $container->has('security.rate_limiter.login');
+            $container->has('security.login_throttling.main.limiter')
+            || $container->has('security.listener.login_throttling.request_rate_limiter')
+            || $container->has('security.rate_limiter.login');
 
         $this->assertTrue($hasLimiter, 'Login throttling limiter service should be registered');
     }

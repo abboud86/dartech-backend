@@ -12,14 +12,15 @@ final class JsonUnauthorizedEntryPoint implements AuthenticationEntryPointInterf
 {
     public function __construct(
         private LoggerInterface $securityLogger,
-    ) {}
+    ) {
+    }
 
     public function start(Request $request, ?AuthenticationException $authException = null): JsonResponse
     {
         // Log sécurité (channel=security) : utile en prod (stderr JSON)
         $this->securityLogger->warning('unauthorized_access', [
             'path' => $request->getPathInfo(),
-            'ip'   => $request->getClientIp(),
+            'ip' => $request->getClientIp(),
         ]);
 
         return new JsonResponse(
