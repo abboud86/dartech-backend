@@ -12,17 +12,17 @@ final class HealthzController extends AbstractController
     #[Route('/healthz', name: 'healthz', methods: ['GET'])]
     public function __invoke(?DbalConnection $db = null): JsonResponse
     {
-        $dbUp    = $this->checkDb($db);
+        $dbUp = $this->checkDb($db);
         $redisUp = $this->checkRedis($_ENV['REDIS_URL'] ?? 'redis://127.0.0.1:6379');
 
         $allUp = $dbUp && $redisUp;
         $payload = [
             'status' => $allUp ? 'ok' : 'degraded',
             'checks' => [
-                'db'    => $dbUp ? 'up' : 'down',
+                'db' => $dbUp ? 'up' : 'down',
                 'redis' => $redisUp ? 'up' : 'down',
             ],
-            'time' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            'time' => (new \DateTimeImmutable())->format(\DATE_ATOM),
         ];
 
         return new JsonResponse(
@@ -37,11 +37,13 @@ final class HealthzController extends AbstractController
         try {
             if ($db) {
                 $db->executeQuery('SELECT 1');
+
                 return true;
             }
         } catch (\Throwable $e) {
             // ignore, fallback below
         }
+
         // Fallback TCP si extension/driver indispo
         return $this->tcpPing('127.0.0.1', 5432, 0.8);
     }
@@ -51,22 +53,24 @@ final class HealthzController extends AbstractController
         // Essai phpredis si présent
         if (class_exists(\Redis::class)) {
             try {
-                $url  = parse_url($dsn) ?: [];
+                $url = parse_url($dsn) ?: [];
                 $host = $url['host'] ?? '127.0.0.1';
-                $port = (int)($url['port'] ?? 6379);
+                $port = (int) ($url['port'] ?? 6379);
                 $r = new \Redis();
                 if ($r->connect($host, $port, 0.8)) {
                     $pong = $r->ping();
-                    return $pong === '+PONG' || $pong === 'PONG' || $pong === true;
+
+                    return '+PONG' === $pong || 'PONG' === $pong || true === $pong;
                 }
             } catch (\Throwable $e) {
                 // ignore, fallback below
             }
         }
         // Fallback TCP
-        $url  = parse_url($dsn) ?: [];
+        $url = parse_url($dsn) ?: [];
         $host = $url['host'] ?? '127.0.0.1';
-        $port = (int)($url['port'] ?? 6379);
+        $port = (int) ($url['port'] ?? 6379);
+
         return $this->tcpPing($host, $port, 0.8);
     }
 
@@ -74,10 +78,15 @@ final class HealthzController extends AbstractController
     {
         try {
             $s = @fsockopen($host, $port, $errno, $errstr, $timeout);
-            if ($s) { fclose($s); return true; }
+            if ($s) {
+                fclose($s);
+
+                return true;
+            }
         } catch (\Throwable $e) {
             // ignore
         }
+
         return false;
     }
 }

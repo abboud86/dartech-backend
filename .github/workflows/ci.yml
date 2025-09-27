@@ -3,6 +3,9 @@ on:
   pull_request:
     branches: ["main"]
 
+permissions:
+  contents: read
+
 jobs:
   php:
     name: php
@@ -14,5 +17,36 @@ jobs:
           php-version: '8.4'
           coverage: none
           tools: composer:v2
-      - name: Validate composer.json
-        run: composer validate --no-check-all --no-check-publish
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - run: composer validate --no-check-all --no-check-publish
+
+  cs:
+    name: cs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - name: PHP-CS-Fixer (dry-run)
+        run: |
+          vendor/bin/php-cs-fixer fix \
+            --dry-run --diff --verbose \
+            --using-cache=no \
+            --allow-risky=yes \
+            --config=.php-cs-fixer.dist.php
+
+  phpstan:
+    name: phpstan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --no-progress

@@ -14,9 +14,5 @@ security:
         - App\Security\TokenAuthenticator 
 
   access_control:
-    # 1) Préflight CORS / OPTIONS = public (ne doit JAMAIS renvoyer 401)
-    - { path: ^/,       roles: PUBLIC_ACCESS, methods: [OPTIONS] }
-    # 2) Liveness/Readiness = public
     - { path: ^/healthz$, roles: PUBLIC_ACCESS }
-    # 3) API v1 = authentification requise
-    - { path: ^/v1,     roles: IS_AUTHENTICATED_FULLY }
+    - { path: ^/v1,       roles: IS_AUTHENTICATED_FULLY } # Ensure this role matches your access control policies
