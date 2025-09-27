@@ -20,12 +20,12 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[UniqueEntity(fields: ['slug'], message: 'Slug must be unique.')]
 class ServiceDefinition
 {
-    // ULID généré applicativement (pas de GeneratedValue)
+    // ULID (doc Symfony UID + Doctrine type 'ulid')
     #[ORM\Id]
     #[ORM\Column(type: 'ulid', unique: true)]
     private ?Ulid $id = null;
 
-    // Relation obligatoire vers Category
+    // Relation obligatoire vers Category (DB nullable=false + Assert\NotNull)
     #[ORM\ManyToOne(targetEntity: Category::class)]
     #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     #[Assert\NotNull]
@@ -44,7 +44,7 @@ class ServiceDefinition
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;
 
-    // Schéma d'attributs dynamiques (JSON)
+    // Schéma d'attributs dynamiques (JSON natif DBAL)
     #[ORM\Column(type: 'json')]
     #[Assert\Type('array')]
     private array $attributesSchema = [];
@@ -94,8 +94,7 @@ class ServiceDefinition
         return $this->category;
     }
 
-    // Setter nullable pour satisfaire l'analyse statique lors des dissociations,
-    // tout en gardant la contrainte de non-null en DB + validation.
+    // Setter nullable pour compat statique; DB + validation empêchent null à la persistance
     public function setCategory(?Category $category): self
     {
         $this->category = $category;
@@ -141,8 +140,7 @@ class ServiceDefinition
     }
 
     /**
-     * Schéma JSON des attributs dynamiques
-     * (types attendus: string|enum|number|photo|bool, required/optional).
+     * Schéma JSON des attributs dynamiques (ex: types: string|enum|number|photo|bool).
      */
     public function getAttributesSchema(): array
     {
