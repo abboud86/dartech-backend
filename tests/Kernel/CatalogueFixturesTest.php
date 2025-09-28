@@ -22,7 +22,7 @@ final class CatalogueFixturesTest extends KernelTestCase
         $svcRepo = $container->get(ServiceDefinitionRepository::class);
 
         $nbCategories = $catRepo->count([]);
-        $nbServices   = $svcRepo->count([]);
+        $nbServices = $svcRepo->count([]);
 
         // Seuils issus du plan (≥20 catégories, ≥60 services)
         self::assertGreaterThanOrEqual(20, $nbCategories, 'Expected at least 20 categories');
