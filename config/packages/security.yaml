@@ -20,6 +20,8 @@ security:
     # 2) Endpoints PUBLICS spécifiques (placer avant la règle générique ^/v1)
     - { path: ^/v1/categories$, roles: PUBLIC_ACCESS, methods: [GET] }
     - { path: ^/v1/categories/, roles: PUBLIC_ACCESS, methods: [GET] } # si un jour /v1/categories/<slug>
+    - { path: ^/v1/services$, roles: PUBLIC_ACCESS, methods: [GET] }
+    - { path: ^/v1/services/, roles: PUBLIC_ACCESS, methods: [GET] }
 
     # 3) Liveness/Readiness = public
     - { path: ^/healthz$, roles: PUBLIC_ACCESS }
