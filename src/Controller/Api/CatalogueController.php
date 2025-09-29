@@ -102,4 +102,68 @@ final class CatalogueController extends AbstractController
             ],
         ], Response::HTTP_OK);
     }
+
+    #[Route('/catalogue', name: 'catalogue_index', methods: ['GET'])]
+    public function catalogue(
+        CategoryRepository $catRepo,
+        ServiceDefinitionRepository $svcRepo,
+    ): JsonResponse {
+        // 1) Charger toutes les catégories (ordre: parent, puis nom)
+        $categories = $catRepo->createQueryBuilder('c')
+            ->leftJoin('c.parent', 'p')->addSelect('p')
+            ->orderBy('p.id', 'ASC')
+            ->addOrderBy('c.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        // 2) Préparer la map [categoryId => row JSON]
+        $byId = [];
+        foreach ($categories as $c) {
+            $cid = (string) $c->getId();
+
+            $byId[$cid] = [
+                'id' => $cid,
+                'name' => $c->getName(),
+                'slug' => $c->getSlug(),
+                'parentId' => $c->getParent() ? (string) $c->getParent()->getId() : null,
+                'services' => [],
+            ];
+        }
+
+        // 3) Charger tous les services avec leur catégorie (ordre: catégorie, service)
+        $services = $svcRepo->createQueryBuilder('s')
+            ->join('s.category', 'c')->addSelect('c')
+            ->orderBy('c.name', 'ASC')
+            ->addOrderBy('s.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        foreach ($services as $s) {
+            $cat = $s->getCategory();
+            if (!$cat) {
+                continue;
+            }
+            $cid = (string) $cat->getId();
+            if (!isset($byId[$cid])) {
+                // Sécurité : si une cat n’était pas dans la première requête
+                $byId[$cid] = [
+                    'id' => $cid,
+                    'name' => $cat->getName(),
+                    'slug' => $cat->getSlug(),
+                    'parentId' => $cat->getParent()?->getId(),
+                    'services' => [],
+                ];
+            }
+            $byId[$cid]['services'][] = [
+                'id' => (string) $s->getId(),
+                'name' => $s->getName(),
+                'slug' => $s->getSlug(),
+            ];
+        }
+
+        // 4) Sortie ordonnée (selon l’ordre des catégories déjà triées)
+        $data = array_values($byId);
+
+        return new JsonResponse(['data' => $data], Response::HTTP_OK);
+    }
 }
