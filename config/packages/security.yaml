@@ -11,12 +11,18 @@ security:
         max_attempts: 5
         interval: '1 minute'
       custom_authenticators:
-        - App\Security\TokenAuthenticator 
+        - App\Security\TokenAuthenticator
 
   access_control:
     # 1) Préflight CORS / OPTIONS = public (ne doit JAMAIS renvoyer 401)
-    - { path: ^/,       roles: PUBLIC_ACCESS, methods: [OPTIONS] }
-    # 2) Liveness/Readiness = public
+    - { path: ^/, roles: PUBLIC_ACCESS, methods: [OPTIONS] }
+
+    # 2) Endpoints PUBLICS spécifiques (placer avant la règle générique ^/v1)
+    - { path: ^/v1/categories$, roles: PUBLIC_ACCESS, methods: [GET] }
+    - { path: ^/v1/categories/, roles: PUBLIC_ACCESS, methods: [GET] } # si un jour /v1/categories/<slug>
+
+    # 3) Liveness/Readiness = public
     - { path: ^/healthz$, roles: PUBLIC_ACCESS }
-    # 3) API v1 = authentification requise
-    - { path: ^/v1,     roles: IS_AUTHENTICATED_FULLY }
+
+    # 4) API v1 = authentification requise (générique)
+    - { path: ^/v1, roles: IS_AUTHENTICATED_FULLY }
