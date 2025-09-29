@@ -23,13 +23,11 @@ final class TokenAuthenticator extends AbstractAuthenticator
     public function supports(Request $request): bool
     {
         // Force l’authenticator pour toutes les routes /v1/* (avec ou sans header)
-        if (str_starts_with($request->getPathInfo(), '/v1/')) {
-            return true;
-        }
+        $auth = $request->headers->get('Authorization');
         // Sinon, si un header Bearer est présent, on gère aussi
         $header = $request->headers->get('Authorization', '');
 
-        return str_starts_with($header, 'Bearer ');
+        return is_string($auth) && str_starts_with($auth, 'Bearer ');
     }
 
     public function authenticate(Request $request): Passport
