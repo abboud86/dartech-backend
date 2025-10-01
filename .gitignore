@@ -28,3 +28,7 @@
 phpstan.neon
 ###< phpstan/phpstan ###
 .env.docker
+
+# temp/backups
+*.bak
+*.tmp

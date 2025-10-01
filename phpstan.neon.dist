@@ -3,6 +3,9 @@ includes:
   - vendor/phpstan/phpstan-symfony/rules.neon
 
 parameters:
+  ignoreErrors:
+    - '#Property App\\Entity\\ArtisanProfile::\$id .* never assigned int so it can be removed from the property type#'
+    - '#Property App\\Entity\\User::\$id .* never assigned Symfony\\Component\\Uid\\Ulid#'
   level: 5
   paths:
     - src

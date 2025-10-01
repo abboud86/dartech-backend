@@ -1,0 +1,21 @@
+# User
+user.email.not_blank: "L’email est requis."
+user.email.invalid: "Adresse email invalide."
+user.email.too_long: "Email trop long ({{ limit }} caractères max)."
+user.email.unique: "Cet email est déjà utilisé."
+
+# ArtisanProfile
+ap.display_name.not_blank: "Le nom d’affichage est requis."
+ap.display_name.too_long: "Nom d’affichage trop long ({{ limit }} caractères max)."
+
+ap.phone.not_blank: "Le numéro de téléphone est requis."
+ap.phone.invalid: "Numéro de téléphone invalide (format E.164, ex: +213555123456)."
+ap.phone.too_long: "Téléphone trop long ({{ limit }} caractères max)."
+
+ap.bio.too_long: "La bio est trop longue ({{ limit }} caractères max)."
+
+ap.wilaya.not_blank: "La wilaya est requise."
+ap.wilaya.too_long: "Wilaya trop longue ({{ limit }} caractères max)."
+
+ap.commune.not_blank: "La commune est requise."
+ap.commune.too_long: "Commune trop longue ({{ limit }} caractères max)."
