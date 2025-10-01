@@ -23,9 +23,9 @@ class ArtisanProfilePersistenceTest extends KernelTestCase
     {
         /** @var UserPasswordHasherInterface $hasher */
         $hasher = static::getContainer()->get(UserPasswordHasherInterface::class); // +++
-
+        $email = 'artisan+'.\bin2hex(\random_bytes(4)).'@example.test';
         $user = (new User())
-            ->setEmail('artisan@example.test')
+            ->setEmail($email)
             ->setPassword($hasher->hashPassword(new User(), 'Password123!')); // +++ hash
 
         $ap = (new ArtisanProfile())

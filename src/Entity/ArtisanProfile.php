@@ -6,6 +6,7 @@ use App\Enum\KycStatus;
 use App\Repository\ArtisanProfileRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ArtisanProfileRepository::class)]
 class ArtisanProfile
@@ -16,18 +17,35 @@ class ArtisanProfile
     private ?int $id = null;
 
     #[ORM\Column(length: 80)]
+    #[Assert\NotBlank(message: 'ap.display_name.not_blank', groups: ['create', 'update'])]
+    #[Assert\Length(max: 80, maxMessage: 'ap.display_name.too_long', groups: ['create', 'update'])]
     private ?string $displayName = null;
 
+    // phone : requis, format E.164, <=20
     #[ORM\Column(length: 20)]
+    #[Assert\NotBlank(message: 'ap.phone.not_blank', groups: ['create', 'update'])]
+    #[Assert\Regex(
+        pattern: '/^\+[1-9]\d{7,14}$/',
+        message: 'ap.phone.invalid',
+        groups: ['create', 'update']
+    )]
+    #[Assert\Length(max: 20, maxMessage: 'ap.phone.too_long', groups: ['create', 'update'])]
     private ?string $phone = null;
 
+    // bio : optionnelle, <=500
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Assert\Length(max: 500, maxMessage: 'ap.bio.too_long', groups: ['create', 'update'])]
     private ?string $bio = null;
 
+    // wilaya : requis, <=64
     #[ORM\Column(length: 64)]
+    #[Assert\NotBlank(message: 'ap.wilaya.not_blank', groups: ['create', 'update'])]
+    #[Assert\Length(max: 64, maxMessage: 'ap.wilaya.too_long', groups: ['create', 'update'])]
     private ?string $wilaya = null;
 
     #[ORM\Column(length: 64)]
+    #[Assert\NotBlank(message: 'ap.commune.not_blank', groups: ['create', 'update'])]
+    #[Assert\Length(max: 64, maxMessage: 'ap.commune.too_long', groups: ['create', 'update'])]
     private ?string $commune = null;
 
     #[ORM\Column(enumType: KycStatus::class)]
