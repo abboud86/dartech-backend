@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Enum\KycStatus;
+use App\Exception\DomainException;
 use App\Repository\ArtisanProfileRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -142,5 +143,33 @@ class ArtisanProfile
         $this->user = $user;
 
         return $this;
+    }
+
+    public function changeKycStatus(KycStatus $to): void
+    {
+        $from = $this->kycStatus;
+
+        // Valid transitions:
+        // pending -> verified | rejected
+        if (KycStatus::PENDING === $from && (KycStatus::VERIFIED === $to || KycStatus::REJECTED === $to)) {
+            $this->kycStatus = $to;
+
+            return;
+        }
+
+        // rejected -> pending (resubmission)
+        if (KycStatus::REJECTED === $from && KycStatus::PENDING === $to) {
+            $this->kycStatus = $to;
+
+            return;
+        }
+
+        // Otherwise: forbidden transition
+        throw new DomainException(sprintf('Transition KYC interdite: %s → %s', $from->value, $to->value));
+    }
+
+    public function __construct()
+    {
+        $this->kycStatus = KycStatus::PENDING;
     }
 }
