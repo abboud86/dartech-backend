@@ -1,0 +1,7 @@
+security:
+  firewalls:
+    main:
+      stateless: true
+      # Remplace l'authenticator de prod par celui de test
+      custom_authenticators:
+        - App\Security\TestTokenAuthenticator
