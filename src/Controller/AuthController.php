@@ -3,10 +3,9 @@
 namespace App\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
 
 final class AuthController extends AbstractController
 {
@@ -17,9 +16,10 @@ final class AuthController extends AbstractController
             'controller_name' => 'AuthController',
         ]);
     }
+
     #[Route('/v1/auth/register', name: 'api_auth_register', methods: ['POST'])]
     public function registerPlaceholder(): JsonResponse
     {
-    return new JsonResponse(['status' => 'not_implemented'], Response::HTTP_NOT_IMPLEMENTED);
+        return new JsonResponse(['status' => 'not_implemented'], Response::HTTP_NOT_IMPLEMENTED);
     }
 }
