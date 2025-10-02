@@ -19,6 +19,9 @@ class AccessToken
     #[ORM\Column(length: 128)]
     private ?string $tokenHash = null;
 
+    #[ORM\Column]
+    private ?\DateTimeImmutable $expiresAt = null;
+
     public function getId(): ?Ulid
     {
         return $this->id;
@@ -32,6 +35,18 @@ class AccessToken
     public function setTokenHash(string $tokenHash): static
     {
         $this->tokenHash = $tokenHash;
+
+        return $this;
+    }
+
+    public function getExpiresAt(): ?\DateTimeImmutable
+    {
+        return $this->expiresAt;
+    }
+
+    public function setExpiresAt(\DateTimeImmutable $expiresAt): static
+    {
+        $this->expiresAt = $expiresAt;
 
         return $this;
     }
