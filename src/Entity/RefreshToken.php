@@ -6,6 +6,7 @@ use App\Repository\RefreshTokenRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Uid\Ulid;
 
 #[ORM\Entity(repositoryClass: RefreshTokenRepository::class)]
 class RefreshToken
@@ -13,7 +14,7 @@ class RefreshToken
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    private ?Ulid $id = null;
 
     #[ORM\Column(length: 128)]
     private ?string $tokenHash = null;
@@ -45,7 +46,7 @@ class RefreshToken
         $this->refreshTokens = new ArrayCollection();
     }
 
-    public function getId(): ?int
+    public function getId(): ?Ulid
     {
         return $this->id;
     }
