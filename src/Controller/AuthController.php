@@ -122,12 +122,12 @@ final class AuthController extends AbstractController
         ], Response::HTTP_OK);
     }
 
-    #[\Symfony\Component\Routing\Attribute\Route('/v1/auth/token/refresh', name: 'api_auth_refresh', methods: ['POST'])]
-    public function refreshPlaceholder(): \Symfony\Component\HttpFoundation\JsonResponse
+    #[Route('/v1/auth/token/refresh', name: 'api_auth_refresh', methods: ['POST'])]
+    public function refreshPlaceholder(): JsonResponse
     {
-    return new \Symfony\Component\HttpFoundation\JsonResponse(
-        ['status' => 'not_implemented'],
-        \Symfony\Component\HttpFoundation\Response::HTTP_NOT_IMPLEMENTED
-    );
+        return new JsonResponse(
+            ['status' => 'not_implemented'],
+            Response::HTTP_NOT_IMPLEMENTED
+        );
     }
 }

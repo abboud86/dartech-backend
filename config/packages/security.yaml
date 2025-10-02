@@ -43,4 +43,5 @@ security:
     - { path: ^/healthz$, roles: PUBLIC_ACCESS }
 
     # 4) API v1 = authentification requise (générique)
+    - { path: ^/v1/auth/token/refresh$, roles: PUBLIC_ACCESS, methods: [POST] }
     - { path: ^/v1, roles: IS_AUTHENTICATED_FULLY }

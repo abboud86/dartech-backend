@@ -59,7 +59,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: RefreshToken::class, mappedBy: 'owner')]
     private Collection $refreshTokens;
 
-
     public function __construct()
     {
         $this->accessTokens = new ArrayCollection();
@@ -223,5 +222,4 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         return $this;
     }
-
 }

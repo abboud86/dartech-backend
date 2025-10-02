@@ -35,7 +35,7 @@ class AccessToken
     private array $scopes = [];
 
     #[ORM\ManyToOne(inversedBy: 'accessTokens')]
-    private ?User $owner= null;
+    private ?User $owner = null;
 
     public function getId(): ?Ulid
     {
