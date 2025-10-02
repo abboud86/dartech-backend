@@ -75,4 +75,47 @@ final class AuthController extends AbstractController
     {
     return new JsonResponse(['status' => 'not_implemented'], Response::HTTP_NOT_IMPLEMENTED);
     }
+    #[Route('/v1/auth/login', name: 'api_auth_login', methods: ['POST'])]
+    public function login(
+    Request $request,
+    ValidatorInterface $validator,
+    UserRepository $users,
+    UserPasswordHasherInterface $hasher,
+    ): JsonResponse {
+    $data = json_decode($request->getContent(), true) ?? [];
+
+    // Validation d'entrée
+    $violations = $validator->validate($data, new Assert\Collection([
+        'fields' => [
+            'email'    => [new Assert\NotBlank(), new Assert\Email()],
+            'password' => [new Assert\NotBlank()],
+        ],
+        'allowExtraFields'   => true,
+        'allowMissingFields' => false,
+    ]));
+    if (count($violations) > 0) {
+        $errors = [];
+        foreach ($violations as $v) {
+            $errors[] = ['field' => (string) $v->getPropertyPath(), 'message' => $v->getMessage()];
+        }
+        return new JsonResponse(['errors' => $errors], Response::HTTP_BAD_REQUEST);
+    }
+
+    $email = (string) $data['email'];
+    $plain = (string) $data['password'];
+
+    $user = $users->findOneBy(['email' => $email]);
+    if (!$user || !$hasher->isPasswordValid($user, $plain)) {
+        return new JsonResponse(['error' => 'invalid_credentials'], Response::HTTP_UNAUTHORIZED);
+    }
+
+    // IMPORTANT : on renvoie le token que ton authenticator attend (dev-mode)
+    $access = $_ENV['API_DEV_TOKEN'] ?? 'dev-token';
+
+    return new JsonResponse([
+        'access_token' => $access,
+        'token_type'   => 'Bearer'
+        // (pas de refresh ici : ajouté en P2-02.2 avec vraie persistance des tokens)
+    ], Response::HTTP_OK);
+    }
 }
