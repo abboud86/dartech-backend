@@ -22,6 +22,21 @@ class AccessToken
     #[ORM\Column]
     private ?\DateTimeImmutable $expiresAt = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $revokedAt = null;
+
+    #[ORM\Column]
+    private ?\DateTimeImmutable $createdAt = null;
+
+    #[ORM\Column]
+    private ?\DateTimeImmutable $lastUsedAt = null;
+
+    #[ORM\Column]
+    private array $scopes = [];
+
+    #[ORM\ManyToOne(inversedBy: 'accessTokens')]
+    private ?User $owner= null;
+
     public function getId(): ?Ulid
     {
         return $this->id;
@@ -47,6 +62,66 @@ class AccessToken
     public function setExpiresAt(\DateTimeImmutable $expiresAt): static
     {
         $this->expiresAt = $expiresAt;
+
+        return $this;
+    }
+
+    public function getRevokedAt(): ?\DateTimeImmutable
+    {
+        return $this->revokedAt;
+    }
+
+    public function setRevokedAt(?\DateTimeImmutable $revokedAt): static
+    {
+        $this->revokedAt = $revokedAt;
+
+        return $this;
+    }
+
+    public function getCreatedAt(): ?\DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    {
+        $this->createdAt = $createdAt;
+
+        return $this;
+    }
+
+    public function getLastUsedAt(): ?\DateTimeImmutable
+    {
+        return $this->lastUsedAt;
+    }
+
+    public function setLastUsedAt(\DateTimeImmutable $lastUsedAt): static
+    {
+        $this->lastUsedAt = $lastUsedAt;
+
+        return $this;
+    }
+
+    public function getScopes(): array
+    {
+        return $this->scopes;
+    }
+
+    public function setScopes(array $scopes): static
+    {
+        $this->scopes = $scopes;
+
+        return $this;
+    }
+
+    public function getOwner(): ?User
+    {
+        return $this->owner;
+    }
+
+    public function setOwner(?User $owner): static
+    {
+        $this->owner = $owner;
 
         return $this;
     }
