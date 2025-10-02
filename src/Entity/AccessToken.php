@@ -16,8 +16,23 @@ class AccessToken
     #[ORM\CustomIdGenerator(class: 'doctrine.ulid_generator')]
     private ?Ulid $id = null;
 
+    #[ORM\Column(length: 128)]
+    private ?string $tokenHash = null;
+
     public function getId(): ?Ulid
     {
         return $this->id;
+    }
+
+    public function getTokenHash(): ?string
+    {
+        return $this->tokenHash;
+    }
+
+    public function setTokenHash(string $tokenHash): static
+    {
+        $this->tokenHash = $tokenHash;
+
+        return $this;
     }
 }
