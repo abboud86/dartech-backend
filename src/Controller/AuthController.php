@@ -70,4 +70,9 @@ final class AuthController extends AbstractController
             'email' => $user->getEmail(),
         ], Response::HTTP_CREATED);
     }
+    #[Route('/v1/auth/login', name: 'api_auth_login', methods: ['POST'])]
+    public function loginPlaceholder(): JsonResponse
+    {
+    return new JsonResponse(['status' => 'not_implemented'], Response::HTTP_NOT_IMPLEMENTED);
+    }
 }
