@@ -121,4 +121,13 @@ final class AuthController extends AbstractController
             // (pas de refresh ici : ajouté en P2-02.2 avec vraie persistance des tokens)
         ], Response::HTTP_OK);
     }
+
+    #[\Symfony\Component\Routing\Attribute\Route('/v1/auth/token/refresh', name: 'api_auth_refresh', methods: ['POST'])]
+    public function refreshPlaceholder(): \Symfony\Component\HttpFoundation\JsonResponse
+    {
+    return new \Symfony\Component\HttpFoundation\JsonResponse(
+        ['status' => 'not_implemented'],
+        \Symfony\Component\HttpFoundation\Response::HTTP_NOT_IMPLEMENTED
+    );
+    }
 }
