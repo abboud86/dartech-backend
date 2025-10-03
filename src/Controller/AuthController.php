@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Security\TokenRotator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -129,5 +130,40 @@ final class AuthController extends AbstractController
             ['status' => 'not_implemented'],
             Response::HTTP_NOT_IMPLEMENTED
         );
+    }
+
+    #[Route('/v1/auth/token/refresh', name: 'auth_refresh', methods: ['POST'])]
+    public function refresh(Request $request, TokenRotator $rotator): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        // 400 si payload manquant/mauvais type
+        $refresh = is_array($data) && isset($data['refresh_token']) ? (string) $data['refresh_token'] : '';
+        if ('' === $refresh) {
+            return new JsonResponse(['error' => 'invalid_request', 'detail' => 'refresh_token is required'], 400, [
+                'Content-Type' => 'application/json; charset=UTF-8',
+            ]);
+        }
+
+        try {
+            $res = $rotator->rotate(
+                $refresh,
+                new \DateInterval('PT15M'),
+                new \DateInterval('P30D'),
+            );
+        } catch (\DomainException $e) {
+            // 401 si token inexistant/expiré/révoqué
+            return new JsonResponse(['error' => 'invalid_refresh_token'], 401, [
+                'Content-Type' => 'application/json; charset=UTF-8',
+            ]);
+        }
+
+        return new JsonResponse([
+            'access_token' => $res['access_token'],
+            'access_expires_at' => $res['access_expires_at']->format(\DateTimeInterface::ATOM),
+            'refresh_token' => $res['refresh_token'],
+            'refresh_expires_at' => $res['refresh_expires_at']->format(\DateTimeInterface::ATOM),
+            // Optionnel: 'token_type' => 'Bearer'
+        ], 200, ['Content-Type' => 'application/json; charset=UTF-8']);
     }
 }
