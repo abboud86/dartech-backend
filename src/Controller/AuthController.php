@@ -19,12 +19,6 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 final class AuthController extends AbstractController
 {
     #[Route('/v1/auth/register', name: 'api_auth_register', methods: ['POST'])]
-    public function registerPlaceholder(): JsonResponse
-    {
-        return new JsonResponse(['status' => 'not_implemented'], Response::HTTP_NOT_IMPLEMENTED);
-    }
-
-    #[Route('/v1/auth/register', name: 'api_auth_register', methods: ['POST'])]
     public function register(
         Request $request,
         ValidatorInterface $validator,
@@ -34,7 +28,6 @@ final class AuthController extends AbstractController
     ): JsonResponse {
         $data = json_decode($request->getContent(), true) ?? [];
 
-        // Validation d'entrée (doc Validator) – contrôle léger côté contrôleur
         $violations = $validator->validate($data, new Assert\Collection([
             'fields' => [
                 'email' => [new Assert\NotBlank(), new Assert\Email(), new Assert\Length(max: 180)],
@@ -43,7 +36,7 @@ final class AuthController extends AbstractController
             'allowExtraFields' => true,
             'allowMissingFields' => false,
         ]));
-        if (count($violations) > 0) {
+        if (\count($violations) > 0) {
             $errors = [];
             foreach ($violations as $v) {
                 $errors[] = ['field' => (string) $v->getPropertyPath(), 'message' => $v->getMessage()];
@@ -55,12 +48,10 @@ final class AuthController extends AbstractController
         $email = (string) $data['email'];
         $plain = (string) $data['password'];
 
-        // Conflit si email déjà utilisé (409)
         if (null !== $users->findOneBy(['email' => $email])) {
             return new JsonResponse(['error' => 'email_already_exists'], Response::HTTP_CONFLICT);
         }
 
-        // Création user + hash (hasher "auto" configuré dans security.yaml)
         $user = (new User())->setEmail($email);
         $user->setPassword($hasher->hashPassword($user, $plain));
 
@@ -74,12 +65,6 @@ final class AuthController extends AbstractController
     }
 
     #[Route('/v1/auth/login', name: 'api_auth_login', methods: ['POST'])]
-    public function loginPlaceholder(): JsonResponse
-    {
-        return new JsonResponse(['status' => 'not_implemented'], Response::HTTP_NOT_IMPLEMENTED);
-    }
-
-    #[Route('/v1/auth/login', name: 'api_auth_login', methods: ['POST'])]
     public function login(
         Request $request,
         ValidatorInterface $validator,
@@ -88,7 +73,6 @@ final class AuthController extends AbstractController
     ): JsonResponse {
         $data = json_decode($request->getContent(), true) ?? [];
 
-        // Validation d'entrée
         $violations = $validator->validate($data, new Assert\Collection([
             'fields' => [
                 'email' => [new Assert\NotBlank(), new Assert\Email()],
@@ -97,7 +81,7 @@ final class AuthController extends AbstractController
             'allowExtraFields' => true,
             'allowMissingFields' => false,
         ]));
-        if (count($violations) > 0) {
+        if (\count($violations) > 0) {
             $errors = [];
             foreach ($violations as $v) {
                 $errors[] = ['field' => (string) $v->getPropertyPath(), 'message' => $v->getMessage()];
@@ -114,32 +98,20 @@ final class AuthController extends AbstractController
             return new JsonResponse(['error' => 'invalid_credentials'], Response::HTTP_UNAUTHORIZED);
         }
 
-        // IMPORTANT : on renvoie le token que ton authenticator attend (dev-mode)
         $access = $_ENV['API_DEV_TOKEN'] ?? 'dev-token';
 
         return new JsonResponse([
             'access_token' => $access,
             'token_type' => 'Bearer',
-            // (pas de refresh ici : ajouté en P2-02.2 avec vraie persistance des tokens)
         ], Response::HTTP_OK);
     }
 
     #[Route('/v1/auth/token/refresh', name: 'api_auth_refresh', methods: ['POST'])]
-    public function refreshPlaceholder(): JsonResponse
-    {
-        return new JsonResponse(
-            ['status' => 'not_implemented'],
-            Response::HTTP_NOT_IMPLEMENTED
-        );
-    }
-
-    #[Route('/v1/auth/token/refresh', name: 'auth_refresh', methods: ['POST'])]
     public function refresh(Request $request, TokenRotator $rotator): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
 
-        // 400 si payload manquant/mauvais type
-        $refresh = is_array($data) && isset($data['refresh_token']) ? (string) $data['refresh_token'] : '';
+        $refresh = \is_array($data) && isset($data['refresh_token']) ? (string) $data['refresh_token'] : '';
         if ('' === $refresh) {
             return new JsonResponse(['error' => 'invalid_request', 'detail' => 'refresh_token is required'], 400, [
                 'Content-Type' => 'application/json; charset=UTF-8',
@@ -152,8 +124,7 @@ final class AuthController extends AbstractController
                 new \DateInterval('PT15M'),
                 new \DateInterval('P30D'),
             );
-        } catch (\DomainException $e) {
-            // 401 si token inexistant/expiré/révoqué
+        } catch (\DomainException) {
             return new JsonResponse(['error' => 'invalid_refresh_token'], 401, [
                 'Content-Type' => 'application/json; charset=UTF-8',
             ]);
@@ -164,7 +135,6 @@ final class AuthController extends AbstractController
             'access_expires_at' => $res['access_expires_at']->format(\DateTimeInterface::ATOM),
             'refresh_token' => $res['refresh_token'],
             'refresh_expires_at' => $res['refresh_expires_at']->format(\DateTimeInterface::ATOM),
-            // Optionnel: 'token_type' => 'Bearer'
         ], 200, ['Content-Type' => 'application/json; charset=UTF-8']);
     }
 
@@ -172,7 +142,7 @@ final class AuthController extends AbstractController
     public function logout(Request $request, TokenRevoker $revoker): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-        $refresh = is_array($data) && isset($data['refresh_token']) ? (string) $data['refresh_token'] : '';
+        $refresh = \is_array($data) && isset($data['refresh_token']) ? (string) $data['refresh_token'] : '';
         if ('' === $refresh) {
             return new JsonResponse(['error' => 'invalid_request', 'detail' => 'refresh_token is required'], 400, [
                 'Content-Type' => 'application/json; charset=UTF-8',
