@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Security\TokenIssuer;
 use App\Security\TokenRevoker;
 use App\Security\TokenRotator;
 use Doctrine\ORM\EntityManagerInterface;
@@ -28,15 +29,15 @@ final class AuthController extends AbstractController
     ): JsonResponse {
         $data = json_decode($request->getContent(), true) ?? [];
 
-        $violations = $validator->validate($data, new Assert\Collection([
-            'fields' => [
+        $violations = $validator->validate($data, new Assert\Collection(
+            fields: [
                 'email' => [new Assert\NotBlank(), new Assert\Email(), new Assert\Length(max: 180)],
                 'password' => [new Assert\NotBlank(), new Assert\Length(min: 8)],
             ],
-            'allowExtraFields' => true,
-            'allowMissingFields' => false,
-        ]));
-        if (\count($violations) > 0) {
+            allowExtraFields: true,
+            allowMissingFields: false,
+        ));
+        if (count($violations) > 0) {
             $errors = [];
             foreach ($violations as $v) {
                 $errors[] = ['field' => (string) $v->getPropertyPath(), 'message' => $v->getMessage()];
@@ -70,18 +71,19 @@ final class AuthController extends AbstractController
         ValidatorInterface $validator,
         UserRepository $users,
         UserPasswordHasherInterface $hasher,
+        TokenIssuer $issuer,
     ): JsonResponse {
         $data = json_decode($request->getContent(), true) ?? [];
 
-        $violations = $validator->validate($data, new Assert\Collection([
-            'fields' => [
+        $violations = $validator->validate($data, new Assert\Collection(
+            fields: [
                 'email' => [new Assert\NotBlank(), new Assert\Email()],
                 'password' => [new Assert\NotBlank()],
             ],
-            'allowExtraFields' => true,
-            'allowMissingFields' => false,
-        ]));
-        if (\count($violations) > 0) {
+            allowExtraFields: true,
+            allowMissingFields: false,
+        ));
+        if (count($violations) > 0) {
             $errors = [];
             foreach ($violations as $v) {
                 $errors[] = ['field' => (string) $v->getPropertyPath(), 'message' => $v->getMessage()];
@@ -98,20 +100,29 @@ final class AuthController extends AbstractController
             return new JsonResponse(['error' => 'invalid_credentials'], Response::HTTP_UNAUTHORIZED);
         }
 
-        $access = $_ENV['API_DEV_TOKEN'] ?? 'dev-token';
+        // émettre un couple access/refresh via TokenIssuer
+        $res = $issuer->issue(
+            owner: $user,
+            scopes: [], // à étendre si besoin
+            accessTtl: new \DateInterval('PT15M'),
+            refreshTtl: new \DateInterval('P30D'),
+        );
 
         return new JsonResponse([
-            'access_token' => $access,
+            'access_token' => $res['access_token'],
+            'access_expires_at' => $res['access_expires_at']->format(\DateTimeInterface::ATOM),
+            'refresh_token' => $res['refresh_token'],
+            'refresh_expires_at' => $res['refresh_expires_at']->format(\DateTimeInterface::ATOM),
             'token_type' => 'Bearer',
         ], Response::HTTP_OK);
     }
 
-    #[Route('/v1/auth/token/refresh', name: 'api_auth_refresh', methods: ['POST'])]
+    #[Route('/v1/auth/token/refresh', name: 'auth_refresh', methods: ['POST'])]
     public function refresh(Request $request, TokenRotator $rotator): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
 
-        $refresh = \is_array($data) && isset($data['refresh_token']) ? (string) $data['refresh_token'] : '';
+        $refresh = is_array($data) && isset($data['refresh_token']) ? (string) $data['refresh_token'] : '';
         if ('' === $refresh) {
             return new JsonResponse(['error' => 'invalid_request', 'detail' => 'refresh_token is required'], 400, [
                 'Content-Type' => 'application/json; charset=UTF-8',
@@ -142,7 +153,7 @@ final class AuthController extends AbstractController
     public function logout(Request $request, TokenRevoker $revoker): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-        $refresh = \is_array($data) && isset($data['refresh_token']) ? (string) $data['refresh_token'] : '';
+        $refresh = is_array($data) && isset($data['refresh_token']) ? (string) $data['refresh_token'] : '';
         if ('' === $refresh) {
             return new JsonResponse(['error' => 'invalid_request', 'detail' => 'refresh_token is required'], 400, [
                 'Content-Type' => 'application/json; charset=UTF-8',

@@ -9,11 +9,13 @@ use Doctrine\ORM\EntityManagerInterface;
 
 final class TokenIssuer
 {
-    public function __construct(private EntityManagerInterface $em)
+    public function __construct(private readonly EntityManagerInterface $em)
     {
     }
 
     /**
+     * Émet un couple access/refresh.
+     *
      * @param list<string> $scopes
      *
      * @return array{
@@ -27,28 +29,29 @@ final class TokenIssuer
     {
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
-        // Génère des valeurs opaques côté client
+        // Valeurs opaques (non devinables)
         $accessPlain = $this->base64url(random_bytes(32));
         $refreshPlain = $this->base64url(random_bytes(32));
 
-        // Hash à persister (hex 64)
+        // Hashs persistés (hex 64)
         $accessHash = hash('sha256', $accessPlain);
         $refreshHash = hash('sha256', $refreshPlain);
 
         // AccessToken
-        $at = new AccessToken();
-        $at->setTokenHash($accessHash);
-        $at->setOwner($owner);
-        $at->setScopes($scopes);
-        $at->setCreatedAt($now);
-        $at->setExpiresAt($now->add($accessTtl));
+        $at = (new AccessToken())
+            ->setOwner($owner)
+            ->setScopes($scopes)
+            ->setTokenHash($accessHash)
+            ->setCreatedAt($now)
+            ->setLastUsedAt($now)              // 👈 important
+            ->setExpiresAt($now->add($accessTtl));
 
         // RefreshToken
-        $rt = new RefreshToken();
-        $rt->setTokenHash($refreshHash);
-        $rt->setOwner($owner);
-        $rt->setCreatedAt($now);
-        $rt->setExpiresAt($now->add($refreshTtl));
+        $rt = (new RefreshToken())
+            ->setOwner($owner)
+            ->setTokenHash($refreshHash)
+            ->setCreatedAt($now)
+            ->setExpiresAt($now->add($refreshTtl));
 
         $this->em->persist($at);
         $this->em->persist($rt);
@@ -60,6 +63,14 @@ final class TokenIssuer
             'refresh_token' => $refreshPlain,
             'refresh_expires_at' => $rt->getExpiresAt(),
         ];
+    }
+
+    /**
+     * Alias utile si certains appels existants attendent issueForUser().
+     */
+    public function issueForUser(User $user, \DateInterval $accessTtl, \DateInterval $refreshTtl): array
+    {
+        return $this->issue($user, [], $accessTtl, $refreshTtl);
     }
 
     private function base64url(string $bin): string
