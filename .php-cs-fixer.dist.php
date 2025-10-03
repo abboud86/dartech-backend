@@ -6,6 +6,7 @@ $finder = (new PhpCsFixer\Finder())
     ->ignoreVCS(true);
 
 $config = new PhpCsFixer\Config();
+
 return $config
     ->setRiskyAllowed(true)
     ->setCacheFile(__DIR__.'/.php-cs-fixer.cache')
@@ -16,4 +17,5 @@ return $config
         'native_function_invocation' => false,
         'declare_strict_types' => false,
     ])
+    ->setParallelConfig(\PhpCsFixer\Runner\Parallel\ParallelConfigFactory::detect())
     ->setFinder($finder);

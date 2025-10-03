@@ -152,4 +152,29 @@ class RefreshToken
 
         return $this;
     }
+
+    // generated accessors (qa)
+    public function getRevokedAt(): ?\DateTimeImmutable
+    {
+        return $this->revokedAt;
+    }
+
+    public function setRevokedAt(?\DateTimeImmutable $revokedAt): static
+    {
+        $this->revokedAt = $revokedAt;
+
+        return $this;
+    }
+
+    public function getRotatedFrom(): ?self
+    {
+        return $this->rotatedFrom;
+    }
+
+    public function setRotatedFrom(?self $rotatedFrom): static
+    {
+        $this->rotatedFrom = $rotatedFrom;
+
+        return $this;
+    }
 }
