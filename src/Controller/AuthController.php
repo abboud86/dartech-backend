@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Security\TokenRevoker;
 use App\Security\TokenRotator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -165,5 +166,27 @@ final class AuthController extends AbstractController
             'refresh_expires_at' => $res['refresh_expires_at']->format(\DateTimeInterface::ATOM),
             // Optionnel: 'token_type' => 'Bearer'
         ], 200, ['Content-Type' => 'application/json; charset=UTF-8']);
+    }
+
+    #[Route('/v1/auth/logout', name: 'auth_logout', methods: ['POST'])]
+    public function logout(Request $request, TokenRevoker $revoker): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $refresh = is_array($data) && isset($data['refresh_token']) ? (string) $data['refresh_token'] : '';
+        if ('' === $refresh) {
+            return new JsonResponse(['error' => 'invalid_request', 'detail' => 'refresh_token is required'], 400, [
+                'Content-Type' => 'application/json; charset=UTF-8',
+            ]);
+        }
+
+        try {
+            $status = $revoker->revokeByRefresh($refresh);
+        } catch (\DomainException) {
+            return new JsonResponse(['error' => 'invalid_refresh_token'], 401, [
+                'Content-Type' => 'application/json; charset=UTF-8',
+            ]);
+        }
+
+        return new JsonResponse(['status' => $status], 200, ['Content-Type' => 'application/json; charset=UTF-8']);
     }
 }

@@ -6,14 +6,16 @@ use App\Repository\RefreshTokenRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Types\UlidType;
 use Symfony\Component\Uid\Ulid;
 
 #[ORM\Entity(repositoryClass: RefreshTokenRepository::class)]
 class RefreshToken
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\Column(type: UlidType::NAME, unique: true)]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: 'doctrine.ulid_generator')]
     private ?Ulid $id = null;
 
     #[ORM\Column(length: 128)]
@@ -23,19 +25,20 @@ class RefreshToken
     private ?\DateTimeImmutable $expiresAt = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $revokeAt = null;
+    private ?\DateTimeImmutable $revokedAt = null; // <- rename ok
 
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'refreshTokens')]
-    private ?self $rotatedForm = null;
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?self $rotatedFrom = null; // <- rename ok
 
     /**
      * @var Collection<int, self>
      */
-    #[ORM\OneToMany(targetEntity: self::class, mappedBy: 'rotatedForm')]
-    private Collection $refreshTokens;
+    #[ORM\OneToMany(targetEntity: self::class, mappedBy: 'rotatedFrom')]
+    private Collection $refreshTokens; // <- mappedBy aligné
 
     #[ORM\ManyToOne(inversedBy: 'refreshTokens')]
     #[ORM\JoinColumn(nullable: false)]
@@ -46,7 +49,7 @@ class RefreshToken
         $this->refreshTokens = new ArrayCollection();
     }
 
-    public function getId(): ?string
+    public function getId(): ?Ulid
     {
         return $this->id;
     }
@@ -75,14 +78,14 @@ class RefreshToken
         return $this;
     }
 
-    public function getRevokeAt(): ?\DateTimeImmutable
+    public function getRevokedAt(): ?\DateTimeImmutable
     {
-        return $this->revokeAt;
+        return $this->revokedAt;
     }
 
-    public function setRevokeAt(?\DateTimeImmutable $revokeAt): static
+    public function setRevokedAt(?\DateTimeImmutable $revokedAt): static
     {
-        $this->revokeAt = $revokeAt;
+        $this->revokedAt = $revokedAt;
 
         return $this;
     }
@@ -99,20 +102,20 @@ class RefreshToken
         return $this;
     }
 
-    public function getRotatedForm(): ?self
+    public function getRotatedFrom(): ?self
     {
-        return $this->rotatedForm;
+        return $this->rotatedFrom;
     }
 
-    public function setRotatedForm(?self $rotatedForm): static
+    public function setRotatedFrom(?self $rotatedFrom): static
     {
-        $this->rotatedForm = $rotatedForm;
+        $this->rotatedFrom = $rotatedFrom;
 
         return $this;
     }
 
     /**
-     * @return Collection<int, RefreshToken>
+     * @return Collection<int, self>
      */
     public function getRefreshTokens(): Collection
     {
@@ -123,7 +126,7 @@ class RefreshToken
     {
         if (!$this->refreshTokens->contains($refreshToken)) {
             $this->refreshTokens->add($refreshToken);
-            $refreshToken->setRotatedForm($this);
+            $refreshToken->setRotatedFrom($this);
         }
 
         return $this;
@@ -132,9 +135,8 @@ class RefreshToken
     public function removeRefreshToken(self $refreshToken): static
     {
         if ($this->refreshTokens->removeElement($refreshToken)) {
-            // set the owning side to null (unless already changed)
-            if ($refreshToken->getRotatedForm() === $this) {
-                $refreshToken->setRotatedForm(null);
+            if ($refreshToken->getRotatedFrom() === $this) {
+                $refreshToken->setRotatedFrom(null);
             }
         }
 

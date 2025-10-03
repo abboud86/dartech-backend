@@ -28,7 +28,7 @@ class AccessToken
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
-    #[ORM\Column]
+    #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $lastUsedAt = null;
 
     #[ORM\Column]
@@ -95,7 +95,7 @@ class AccessToken
         return $this->lastUsedAt;
     }
 
-    public function setLastUsedAt(\DateTimeImmutable $lastUsedAt): static
+    public function setLastUsedAt(?\DateTimeImmutable $lastUsedAt): static
     {
         $this->lastUsedAt = $lastUsedAt;
 

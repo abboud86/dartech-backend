@@ -32,7 +32,7 @@ final class TokenRotator
         if (!$old) {
             throw new \DomainException('invalid_refresh_token'); // 401
         }
-        if (null !== $old->getRevokeAt()) {
+        if (null !== $old->getRevokedAt()) {
             throw new \DomainException('refresh_token_revoked'); // 401
         }
         if ($old->getExpiresAt() <= $now) {
@@ -42,7 +42,7 @@ final class TokenRotator
         $owner = $old->getOwner();
 
         // révoquer l’ancien refresh
-        $old->setRevokeAt($now);
+        $old->setRevokedAt($now);
 
         // nouveaux tokens (opaques côté client, hashés en DB)
         $accessPlain = $this->base64url(random_bytes(32));
@@ -64,7 +64,7 @@ final class TokenRotator
             ->setOwner($owner)
             ->setCreatedAt($now)
             ->setExpiresAt($now->add($refreshTtl))
-            ->setRotatedForm($old);
+            ->setRotatedFrom($old);
 
         $this->em->persist($at);
         $this->em->persist($rt);
