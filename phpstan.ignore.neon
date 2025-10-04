@@ -1,0 +1,6 @@
+parameters:
+  ignoreErrors:
+    - identifier: property.unusedType
+      paths:
+        - src/Entity/AccessToken.php
+        - src/Entity/RefreshToken.php

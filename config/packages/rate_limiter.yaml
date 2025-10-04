@@ -1,0 +1,9 @@
+framework:
+  rate_limiter:
+    me_get:
+      policy: 'token_bucket'
+      limit: 2
+      rate:
+        interval: '1 minute'
+        amount: 2
+      cache_pool: 'cache.rate_limiter'
