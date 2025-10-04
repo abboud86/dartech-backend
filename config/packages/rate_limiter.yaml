@@ -1,0 +1,6 @@
+framework:
+  rate_limiter:
+    api_me:
+      policy: 'fixed_window'
+      limit: 30          # 30 requêtes
+      interval: '1 minute'
