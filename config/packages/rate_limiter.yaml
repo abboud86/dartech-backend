@@ -1,6 +1,9 @@
 framework:
   rate_limiter:
-    api_me:
-      policy: 'fixed_window'
-      limit: 30          # 30 requêtes
-      interval: '1 minute'
+    me_get:
+      policy: 'token_bucket'
+      limit: 2
+      rate:
+        interval: '1 minute'
+        amount: 2
+      cache_pool: 'cache.rate_limiter'
