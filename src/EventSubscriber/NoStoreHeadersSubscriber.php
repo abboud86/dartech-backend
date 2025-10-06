@@ -18,7 +18,6 @@ final class NoStoreHeadersSubscriber implements EventSubscriberInterface
 
     public function onKernelResponse(ResponseEvent $event): void
     {
-        // Only master (main) request
         if (!$event->isMainRequest()) {
             return;
         }
@@ -26,18 +25,23 @@ final class NoStoreHeadersSubscriber implements EventSubscriberInterface
         $request = $event->getRequest();
         $response = $event->getResponse();
 
-        // We only care about /v1/me, and only for JSON responses.
-        $path = $request->getPathInfo();
-        if ('/v1/me' !== $path) {
-            return;
-        }
+        // Only JSON responses
         if (!$response instanceof JsonResponse) {
             return;
         }
 
-        // Add RFC7234 no-store guards (idempotent: will just overwrite if present)
+        $path = $request->getPathInfo();
+
+        // Guard only /v1/me and every /v1/auth/* endpoint
+        $isMe = ('/v1/me' === $path);
+        $isAuth = str_starts_with($path, '/v1/auth/');
+
+        if (!$isMe && !$isAuth) {
+            return;
+        }
+
+        // RFC7234/RFC9111: ensure sensitive payloads are not stored
         $response->headers->set('Cache-Control', 'no-store');
         $response->headers->set('Pragma', 'no-cache');
-        // Content-Type is already set by JsonResponse, leave it as-is.
     }
 }
