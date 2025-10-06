@@ -29,14 +29,10 @@ final class AuthController extends AbstractController
     ): JsonResponse {
         $data = json_decode($request->getContent(), true) ?? [];
 
-        $violations = $validator->validate($data, new Assert\Collection(
-            fields: [
-                'email' => [new Assert\NotBlank(), new Assert\Email(), new Assert\Length(max: 180)],
-                'password' => [new Assert\NotBlank(), new Assert\Length(min: 8)],
-            ],
-            allowExtraFields: true,
-            allowMissingFields: false,
-        ));
+        $violations = $validator->validate($data, new Assert\Collection(fields: [
+            'email' => [new Assert\NotBlank(), new Assert\Email(), new Assert\Length(max: 180)],
+            'password' => [new Assert\NotBlank(), new Assert\Length(min: 8)],
+        ]));
         if (count($violations) > 0) {
             $errors = [];
             foreach ($violations as $v) {
@@ -75,21 +71,21 @@ final class AuthController extends AbstractController
     ): JsonResponse {
         $data = json_decode($request->getContent(), true) ?? [];
 
-        $violations = $validator->validate($data, new Assert\Collection(
-            fields: [
-                'email' => [new Assert\NotBlank(), new Assert\Email()],
-                'password' => [new Assert\NotBlank()],
-            ],
-            allowExtraFields: true,
-            allowMissingFields: false,
-        ));
+        $violations = $validator->validate($data, new Assert\Collection(fields: [
+            'email' => [new Assert\NotBlank(), new Assert\Email()],
+            'password' => [new Assert\NotBlank()],
+        ]));
         if (count($violations) > 0) {
             $errors = [];
             foreach ($violations as $v) {
                 $errors[] = ['field' => (string) $v->getPropertyPath(), 'message' => $v->getMessage()];
             }
 
-            return new JsonResponse(['errors' => $errors], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['errors' => $errors], Response::HTTP_BAD_REQUEST, [
+                'Content-Type' => 'application/json; charset=UTF-8',
+                'Cache-Control' => 'no-store',
+                'Pragma' => 'no-cache',
+            ]);
         }
 
         $email = (string) $data['email'];
@@ -97,16 +93,15 @@ final class AuthController extends AbstractController
 
         $user = $users->findOneBy(['email' => $email]);
         if (!$user || !$hasher->isPasswordValid($user, $plain)) {
-            return new JsonResponse(['error' => 'invalid_credentials'], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(['error' => 'invalid_credentials'], Response::HTTP_UNAUTHORIZED, [
+                'Content-Type' => 'application/json; charset=UTF-8',
+                'Cache-Control' => 'no-store',
+                'Pragma' => 'no-cache',
+            ]);
         }
 
-        // émettre un couple access/refresh via TokenIssuer
-        $res = $issuer->issue(
-            owner: $user,
-            scopes: [], // à étendre si besoin
-            accessTtl: new \DateInterval('PT15M'),
-            refreshTtl: new \DateInterval('P30D'),
-        );
+        // Issue opaque tokens (access + refresh)
+        $res = $issuer->issue($user, [], new \DateInterval('PT15M'), new \DateInterval('P30D'));
 
         return new JsonResponse([
             'access_token' => $res['access_token'],
@@ -114,7 +109,11 @@ final class AuthController extends AbstractController
             'refresh_token' => $res['refresh_token'],
             'refresh_expires_at' => $res['refresh_expires_at']->format(\DateTimeInterface::ATOM),
             'token_type' => 'Bearer',
-        ], Response::HTTP_OK);
+        ], Response::HTTP_OK, [
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'Cache-Control' => 'no-store',
+            'Pragma' => 'no-cache',
+        ]);
     }
 
     #[Route('/v1/auth/token/refresh', name: 'auth_refresh', methods: ['POST'])]
@@ -124,9 +123,15 @@ final class AuthController extends AbstractController
 
         $refresh = is_array($data) && isset($data['refresh_token']) ? (string) $data['refresh_token'] : '';
         if ('' === $refresh) {
-            return new JsonResponse(['error' => 'invalid_request', 'detail' => 'refresh_token is required'], 400, [
-                'Content-Type' => 'application/json; charset=UTF-8',
-            ]);
+            return new JsonResponse(
+                ['error' => 'invalid_request', 'detail' => 'refresh_token is required'],
+                Response::HTTP_BAD_REQUEST,
+                [
+                    'Content-Type' => 'application/json; charset=UTF-8',
+                    'Cache-Control' => 'no-store',
+                    'Pragma' => 'no-cache',
+                ]
+            );
         }
 
         try {
@@ -136,8 +141,10 @@ final class AuthController extends AbstractController
                 new \DateInterval('P30D'),
             );
         } catch (\DomainException) {
-            return new JsonResponse(['error' => 'invalid_refresh_token'], 401, [
+            return new JsonResponse(['error' => 'invalid_refresh_token'], Response::HTTP_UNAUTHORIZED, [
                 'Content-Type' => 'application/json; charset=UTF-8',
+                'Cache-Control' => 'no-store',
+                'Pragma' => 'no-cache',
             ]);
         }
 
@@ -146,7 +153,11 @@ final class AuthController extends AbstractController
             'access_expires_at' => $res['access_expires_at']->format(\DateTimeInterface::ATOM),
             'refresh_token' => $res['refresh_token'],
             'refresh_expires_at' => $res['refresh_expires_at']->format(\DateTimeInterface::ATOM),
-        ], 200, ['Content-Type' => 'application/json; charset=UTF-8']);
+        ], 200, [
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'Cache-Control' => 'no-store',
+            'Pragma' => 'no-cache',
+        ]);
     }
 
     #[Route('/v1/auth/logout', name: 'auth_logout', methods: ['POST'])]
@@ -155,19 +166,31 @@ final class AuthController extends AbstractController
         $data = json_decode($request->getContent(), true);
         $refresh = is_array($data) && isset($data['refresh_token']) ? (string) $data['refresh_token'] : '';
         if ('' === $refresh) {
-            return new JsonResponse(['error' => 'invalid_request', 'detail' => 'refresh_token is required'], 400, [
-                'Content-Type' => 'application/json; charset=UTF-8',
-            ]);
+            return new JsonResponse(
+                ['error' => 'invalid_request', 'detail' => 'refresh_token is required'],
+                Response::HTTP_BAD_REQUEST,
+                [
+                    'Content-Type' => 'application/json; charset=UTF-8',
+                    'Cache-Control' => 'no-store',
+                    'Pragma' => 'no-cache',
+                ]
+            );
         }
 
         try {
             $status = $revoker->revokeByRefresh($refresh);
         } catch (\DomainException) {
-            return new JsonResponse(['error' => 'invalid_refresh_token'], 401, [
+            return new JsonResponse(['error' => 'invalid_refresh_token'], Response::HTTP_UNAUTHORIZED, [
                 'Content-Type' => 'application/json; charset=UTF-8',
+                'Cache-Control' => 'no-store',
+                'Pragma' => 'no-cache',
             ]);
         }
 
-        return new JsonResponse(['status' => $status], 200, ['Content-Type' => 'application/json; charset=UTF-8']);
+        return new JsonResponse(['status' => $status], 200, [
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'Cache-Control' => 'no-store',
+            'Pragma' => 'no-cache',
+        ]);
     }
 }
