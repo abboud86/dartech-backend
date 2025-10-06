@@ -24,6 +24,7 @@ security:
         max_attempts: 5
         interval: '1 minute'
       custom_authenticators:
+        - App\Security\TestTokenAuthenticator
         - App\Security\TokenAuthenticator
 
   access_control:
