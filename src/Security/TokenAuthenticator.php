@@ -22,39 +22,39 @@ final class TokenAuthenticator extends AbstractAuthenticator
 
     public function supports(Request $request): bool
     {
-        // Force l’authenticator pour toutes les routes /v1/* (avec ou sans header)
-        $auth = $request->headers->get('Authorization');
-        // Sinon, si un header Bearer est présent, on gère aussi
-        $header = $request->headers->get('Authorization', '');
+        // Cast to string and check prefix; no is_string() needed
+        $h = (string) $request->headers->get('Authorization', '');
 
-        return is_string($auth) && str_starts_with($auth, 'Bearer ');
+        return str_starts_with($h, 'Bearer ');
     }
 
     public function authenticate(Request $request): Passport
     {
-        $header = $request->headers->get('Authorization', '');
+        $header = (string) $request->headers->get('Authorization', '');
         $token = str_starts_with($header, 'Bearer ') ? trim(substr($header, 7)) : '';
-        $valid = $_ENV['API_DEV_TOKEN'] ?? 'dev-token';
+        $valid = (string) ($_ENV['API_DEV_TOKEN'] ?? 'dev-token');
 
-        if ($token !== $valid) {
+        if ('' === $token || strlen($token) > 1024) {
+            throw new AuthenticationException('Invalid bearer token');
+        }
+
+        // constant-time compare
+        if (!hash_equals($valid, $token)) {
             throw new AuthenticationException('Invalid bearer token');
         }
 
         return new SelfValidatingPassport(
-            new UserBadge('dev', function (string $identifier) {
-                return new InMemoryUser($identifier, password: '', roles: ['ROLE_USER']);
-            })
+            new UserBadge('dev', static fn (string $id) => new InMemoryUser($id, '', ['ROLE_USER']))
         );
     }
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
-        return null; // continuer la requête normalement
+        return null;
     }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
-        // Log sécurité (channel=security) pour tracer les 401 côté authenticator
         $this->securityLogger->warning('auth_failure', [
             'path' => $request->getPathInfo(),
             'ip' => $request->getClientIp(),

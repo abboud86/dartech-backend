@@ -1,0 +1,6 @@
+framework:
+  rate_limiter:
+    api_me:
+      policy: 'fixed_window'
+      limit: 2           # volontairement petit, pour déclencher 429 en test
+      interval: '1 minute'
