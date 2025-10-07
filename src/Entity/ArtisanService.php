@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Enum\ArtisanServiceStatus;
 use App\Repository\ArtisanServiceRepository;
+use App\Validator\SingleActivePublication;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UlidType;
@@ -20,6 +21,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 #[ORM\Index(name: 'IDX_service_definition', columns: ['service_definition_id'])]
 #[ORM\Index(name: 'IDX_status', columns: ['status'])]
 #[UniqueEntity(fields: ['artisanProfile', 'slug'], message: 'Slug must be unique per artisan')]
+#[SingleActivePublication(message: 'Only one active service per artisan & service definition.')]
 #[ORM\Entity(repositoryClass: ArtisanServiceRepository::class)]
 class ArtisanService
 {
