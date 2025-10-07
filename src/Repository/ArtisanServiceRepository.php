@@ -8,7 +8,11 @@ use App\Entity\ServiceDefinition;
 use App\Enum\ArtisanServiceStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Ulid;
 
+/**
+ * @extends ServiceEntityRepository<ArtisanService>
+ */
 class ArtisanServiceRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
@@ -17,27 +21,28 @@ class ArtisanServiceRepository extends ServiceEntityRepository
     }
 
     /**
-     * Returns another active service for the same (artisan, serviceDefinition),
-     * excluding the current one (by ULID) if provided.
+     * Returns true if an ACTIVE service already exists for (artisanProfile, serviceDefinition).
+     * $excludeId lets you exclude the current entity (edition).
      */
-    public function findOneActiveByArtisanAndDefinition(
-        ArtisanProfile $artisan,
-        ServiceDefinition $definition,
-        ?\Symfony\Component\Uid\Ulid $excludeId = null,
-    ): ?ArtisanService {
+    public function hasActiveForCouple(
+        ArtisanProfile $artisanProfile,
+        ServiceDefinition $serviceDefinition,
+        ?Ulid $excludeId = null,
+    ): bool {
         $qb = $this->createQueryBuilder('s')
-            ->andWhere('s.artisanProfile = :artisan')
-            ->andWhere('s.serviceDefinition = :definition')
-            ->andWhere('s.status = :status')
-            ->setParameter('artisan', $artisan)
-            ->setParameter('definition', $definition)
-            ->setParameter('status', ArtisanServiceStatus::ACTIVE);
+            ->select('1')
+            ->andWhere('s.artisanProfile = :ap')
+            ->andWhere('s.serviceDefinition = :sd')
+            ->andWhere('s.status = :active')
+            ->setParameter('ap', $artisanProfile)
+            ->setParameter('sd', $serviceDefinition)
+            ->setParameter('active', ArtisanServiceStatus::ACTIVE)
+            ->setMaxResults(1);
 
         if (null !== $excludeId) {
-            $qb->andWhere('s.id != :excludeId')
-               ->setParameter('excludeId', $excludeId);
+            $qb->andWhere('s.id != :excludeId')->setParameter('excludeId', $excludeId);
         }
 
-        return $qb->setMaxResults(1)->getQuery()->getOneOrNullResult();
+        return (bool) $qb->getQuery()->getOneOrNullResult();
     }
 }

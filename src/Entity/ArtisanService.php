@@ -21,7 +21,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 #[ORM\Index(name: 'IDX_service_definition', columns: ['service_definition_id'])]
 #[ORM\Index(name: 'IDX_status', columns: ['status'])]
 #[UniqueEntity(fields: ['artisanProfile', 'slug'], message: 'Slug must be unique per artisan')]
-#[SingleActivePublication(message: 'Only one active service per artisan & service definition.')]
+#[SingleActivePublication] // <- pas de param "message" ici
 #[ORM\Entity(repositoryClass: ArtisanServiceRepository::class)]
 class ArtisanService
 {
@@ -67,10 +67,17 @@ class ArtisanService
 
     public function __construct()
     {
-        $this->id = new Ulid();
         $now = new \DateTimeImmutable();
         $this->createdAt = $now;
         $this->updatedAt = $now;
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersistSetId(): void
+    {
+        if (null === $this->id) {
+            $this->id = new Ulid();
+        }
     }
 
     public function getId(): ?Ulid
