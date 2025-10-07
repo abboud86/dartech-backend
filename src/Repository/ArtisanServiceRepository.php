@@ -2,13 +2,13 @@
 
 namespace App\Repository;
 
+use App\Entity\ArtisanProfile;
 use App\Entity\ArtisanService;
+use App\Entity\ServiceDefinition;
+use App\Enum\ArtisanServiceStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
-/**
- * @extends ServiceEntityRepository<ArtisanService>
- */
 class ArtisanServiceRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
@@ -16,28 +16,28 @@ class ArtisanServiceRepository extends ServiceEntityRepository
         parent::__construct($registry, ArtisanService::class);
     }
 
-    //    /**
-    //     * @return ArtisanService[] Returns an array of ArtisanService objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('a')
-    //            ->andWhere('a.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('a.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
+    /**
+     * Returns another active service for the same (artisan, serviceDefinition),
+     * excluding the current one (by ULID) if provided.
+     */
+    public function findOneActiveByArtisanAndDefinition(
+        ArtisanProfile $artisan,
+        ServiceDefinition $definition,
+        ?\Symfony\Component\Uid\Ulid $excludeId = null,
+    ): ?ArtisanService {
+        $qb = $this->createQueryBuilder('s')
+            ->andWhere('s.artisanProfile = :artisan')
+            ->andWhere('s.serviceDefinition = :definition')
+            ->andWhere('s.status = :status')
+            ->setParameter('artisan', $artisan)
+            ->setParameter('definition', $definition)
+            ->setParameter('status', ArtisanServiceStatus::ACTIVE);
 
-    //    public function findOneBySomeField($value): ?ArtisanService
-    //    {
-    //        return $this->createQueryBuilder('a')
-    //            ->andWhere('a.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+        if (null !== $excludeId) {
+            $qb->andWhere('s.id != :excludeId')
+               ->setParameter('excludeId', $excludeId);
+        }
+
+        return $qb->setMaxResults(1)->getQuery()->getOneOrNullResult();
+    }
 }
