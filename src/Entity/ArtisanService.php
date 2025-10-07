@@ -2,12 +2,24 @@
 
 namespace App\Entity;
 
+use App\Enum\ArtisanServiceStatus;
 use App\Repository\ArtisanServiceRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UlidType;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Uid\Ulid;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Constraints\Callback;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
+#[ORM\HasLifecycleCallbacks]
+#[ORM\Table(name: 'artisan_service')]
+#[ORM\UniqueConstraint(name: 'UNIQ_artisan_slug', columns: ['artisan_profile_id', 'slug'])]
+#[ORM\Index(name: 'IDX_artisan_profile', columns: ['artisan_profile_id'])]
+#[ORM\Index(name: 'IDX_service_definition', columns: ['service_definition_id'])]
+#[ORM\Index(name: 'IDX_status', columns: ['status'])]
+#[UniqueEntity(fields: ['artisanProfile', 'slug'], message: 'Slug must be unique per artisan')]
 #[ORM\Entity(repositoryClass: ArtisanServiceRepository::class)]
 class ArtisanService
 {
@@ -38,8 +50,9 @@ class ArtisanService
     #[ORM\Column(length: 3)]
     private ?string $currency = null;
 
-    #[ORM\Column(length: 16)]
-    private ?string $status = null;
+    #[ORM\Column(enumType: ArtisanServiceStatus::class)]
+    #[Assert\NotNull]
+    private ArtisanServiceStatus $status = ArtisanServiceStatus::DRAFT;
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $publishedAt = null;
@@ -147,12 +160,12 @@ class ArtisanService
         return $this;
     }
 
-    public function getStatus(): ?string
+    public function getStatus(): ArtisanServiceStatus
     {
         return $this->status;
     }
 
-    public function setStatus(string $status): static
+    public function setStatus(ArtisanServiceStatus $status): static
     {
         $this->status = $status;
 
@@ -193,5 +206,21 @@ class ArtisanService
         $this->updatedAt = $updatedAt;
 
         return $this;
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+
+    #[Callback('validatePublishedAt')]
+    public function validatePublishedAt(ExecutionContextInterface $context): void
+    {
+        if (ArtisanServiceStatus::ACTIVE === $this->status && null === $this->publishedAt) {
+            $context->buildViolation('publishedAt is required when status is active')
+                ->atPath('publishedAt')
+                ->addViolation();
+        }
     }
 }
