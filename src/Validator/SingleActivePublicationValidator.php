@@ -8,46 +8,39 @@ use App\Repository\ArtisanServiceRepository;
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\ConstraintValidator;
 
-class SingleActivePublicationValidator extends ConstraintValidator
+final class SingleActivePublicationValidator extends ConstraintValidator
 {
-    public function __construct(private readonly ArtisanServiceRepository $repository)
-    {
+    public function __construct(
+        private readonly ArtisanServiceRepository $repository,
+    ) {
     }
 
-    /**
-     * @param ArtisanService|null $value
-     */
     public function validate($value, Constraint $constraint): void
     {
-        if (!$constraint instanceof SingleActivePublication) {
-            return; // mauvaise contrainte (ne devrait pas arriver)
-        }
+        // On ne traite que nos cas
         if (!$value instanceof ArtisanService) {
-            return; // not our target
+            return;
+        }
+        if (!$constraint instanceof SingleActivePublication) {
+            // Sécurité pour PHPStan & cas improbables
+            return;
         }
 
-        // We only care when status is ACTIVE
+        // Règle: on ne vérifie que pour ACTIVE
         if (ArtisanServiceStatus::ACTIVE !== $value->getStatus()) {
             return;
         }
 
-        // If required associations are missing, skip (another validator will catch nulls)
-        $artisan = $value->getArtisanProfile();
-        $definition = $value->getServiceDefinition();
-        if (null === $artisan || null === $definition) {
-            return;
-        }
-
-        $other = $this->repository->findOneActiveByArtisanAndDefinition(
-            $artisan,
-            $definition,
-            $value->getId()
+        $exists = $this->repository->hasActiveForCouple(
+            $value->getArtisanProfile(),
+            $value->getServiceDefinition(),
+            $value->getId() // null si création
         );
 
-        if (null !== $other) {
+        if ($exists) {
             $this->context
                 ->buildViolation($constraint->message)
-                ->atPath('status')
+                ->atPath('status') // attendu par le test
                 ->addViolation();
         }
     }
