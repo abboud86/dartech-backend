@@ -3,13 +3,11 @@ security:
     App\Entity\User:
       algorithm: auto
 
-
   providers:
     app_user_provider:
       entity:
         class: App\Entity\User
         property: email
-    # used to reload user from session & other features (e.g. switch_user)
 
   firewalls:
     dev:
@@ -28,21 +26,23 @@ security:
         - App\Security\TokenAuthenticator
 
   access_control:
-    - { path: ^/v1/auth/register$, roles: PUBLIC_ACCESS, methods: [POST] }
-    - { path: ^/v1/auth/login$,    roles: PUBLIC_ACCESS, methods: [POST] }
-    - { path: ^/v1/auth/logout$,        roles: PUBLIC_ACCESS, methods: [POST] }
-    # 1) Préflight CORS / OPTIONS = public (ne doit JAMAIS renvoyer 401)
+    # 0) CORS preflight must never be blocked
     - { path: ^/, roles: PUBLIC_ACCESS, methods: [OPTIONS] }
 
+    # 1) Public auth endpoints (POST)
+    - { path: ^/v1/auth/register$, roles: PUBLIC_ACCESS, methods: [POST] }
+    - { path: ^/v1/auth/login$,    roles: PUBLIC_ACCESS, methods: [POST] }
+    - { path: ^/v1/auth/logout$,   roles: PUBLIC_ACCESS, methods: [POST] }
 
-    # 2) Endpoints PUBLICS spécifiques (placer avant la règle générique ^/v1)
+    # 2) Public read-only endpoints (GET)
+    - { path: ^/v1/artisans,   roles: PUBLIC_ACCESS, methods: [GET] }
     - { path: ^/v1/categories$, roles: PUBLIC_ACCESS, methods: [GET] }
-    - { path: ^/v1/categories/, roles: PUBLIC_ACCESS, methods: [GET] } # si un jour /v1/categories/<slug>
-    - { path: ^/v1/services$, roles: PUBLIC_ACCESS, methods: [GET] }
-    - { path: ^/v1/services/, roles: PUBLIC_ACCESS, methods: [GET] }
+    - { path: ^/v1/categories/, roles: PUBLIC_ACCESS, methods: [GET] } # for future /v1/categories/<slug>
+    - { path: ^/v1/services$,   roles: PUBLIC_ACCESS, methods: [GET] }
+    - { path: ^/v1/services/,   roles: PUBLIC_ACCESS, methods: [GET] }
 
-    # 3) Liveness/Readiness = public
+    # 3) Health endpoints (public)
     - { path: ^/healthz$, roles: PUBLIC_ACCESS }
 
-    # 4) API v1 = authentification requise (générique)
+    # 4) Default: everything under /v1 requires auth
     - { path: ^/v1, roles: IS_AUTHENTICATED_FULLY }
