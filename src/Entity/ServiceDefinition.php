@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Repository\ServiceDefinitionRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\String\Slugger\AsciiSlugger;
@@ -56,10 +58,17 @@ class ServiceDefinition
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
+    /**
+     * @var Collection<int, ArtisanService>
+     */
+    #[ORM\OneToMany(targetEntity: ArtisanService::class, mappedBy: 'serviceDefinition')]
+    private Collection $artisanServices;
+
     public function __construct()
     {
         $this->id = new Ulid();
         $this->createdAt = new \DateTimeImmutable();
+        $this->artisanServices = new ArrayCollection();
     }
 
     // ——— Lifecycle ———
@@ -162,5 +171,35 @@ class ServiceDefinition
     public function getUpdatedAt(): ?\DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    /**
+     * @return Collection<int, ArtisanService>
+     */
+    public function getArtisanServices(): Collection
+    {
+        return $this->artisanServices;
+    }
+
+    public function addArtisanService(ArtisanService $artisanService): static
+    {
+        if (!$this->artisanServices->contains($artisanService)) {
+            $this->artisanServices->add($artisanService);
+            $artisanService->setServiceDefinition($this);
+        }
+
+        return $this;
+    }
+
+    public function removeArtisanService(ArtisanService $artisanService): static
+    {
+        if ($this->artisanServices->removeElement($artisanService)) {
+            // set the owning side to null (unless already changed)
+            if ($artisanService->getServiceDefinition() === $this) {
+                $artisanService->setServiceDefinition(null);
+            }
+        }
+
+        return $this;
     }
 }

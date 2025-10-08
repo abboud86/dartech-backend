@@ -5,6 +5,8 @@ namespace App\Entity;
 use App\Enum\KycStatus;
 use App\Exception\DomainException;
 use App\Repository\ArtisanProfileRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -55,6 +57,12 @@ class ArtisanProfile
     #[ORM\OneToOne(inversedBy: 'artisanProfile', cascade: ['persist', 'remove'])]
     #[ORM\JoinColumn(name: 'user_id', nullable: false, unique: true, onDelete: 'CASCADE')]
     private ?User $user = null;
+
+    /**
+     * @var Collection<int, ArtisanService>
+     */
+    #[ORM\OneToMany(targetEntity: ArtisanService::class, mappedBy: 'artisanProfile')]
+    private Collection $artisanServices;
 
     public function getId(): ?int
     {
@@ -171,5 +179,36 @@ class ArtisanProfile
     public function __construct()
     {
         $this->kycStatus = KycStatus::PENDING;
+        $this->artisanServices = new ArrayCollection();
+    }
+
+    /**
+     * @return Collection<int, ArtisanService>
+     */
+    public function getArtisanServices(): Collection
+    {
+        return $this->artisanServices;
+    }
+
+    public function addArtisanService(ArtisanService $artisanService): static
+    {
+        if (!$this->artisanServices->contains($artisanService)) {
+            $this->artisanServices->add($artisanService);
+            $artisanService->setArtisanProfile($this);
+        }
+
+        return $this;
+    }
+
+    public function removeArtisanService(ArtisanService $artisanService): static
+    {
+        if ($this->artisanServices->removeElement($artisanService)) {
+            // set the owning side to null (unless already changed)
+            if ($artisanService->getArtisanProfile() === $this) {
+                $artisanService->setArtisanProfile(null);
+            }
+        }
+
+        return $this;
     }
 }
