@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller\Artisan;
 
+use App\Entity\ArtisanService;
+use App\Enum\ArtisanServiceStatus;
+use App\Repository\ArtisanProfileRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -17,8 +20,11 @@ final class SearchArtisanController
     private const MAX_PER_PAGE = 100;
 
     #[Route('/v1/artisans', name: 'api_artisans_index', methods: ['GET'])]
-    public function __invoke(Request $request, ValidatorInterface $validator): JsonResponse
-    {
+    public function __invoke(
+        Request $request,
+        ValidatorInterface $validator,
+        ArtisanProfileRepository $repo,
+    ): JsonResponse {
         // Pagination
         $page = $request->query->getInt('page', self::DEFAULT_PAGE);
         $perPage = $request->query->getInt('per_page', self::DEFAULT_PER_PAGE);
@@ -30,7 +36,7 @@ final class SearchArtisanController
             'serviceDefinition' => $request->query->get('serviceDefinition'),
         ];
 
-        // Contraintes (allowMissingFields pour filtres optionnels)
+        // Contraintes
         $constraints = new Assert\Collection(
             fields: [
                 'page' => new Assert\Sequentially([
@@ -69,7 +75,6 @@ final class SearchArtisanController
         ];
 
         $violations = $validator->validate($input, $constraints);
-
         if (\count($violations) > 0) {
             $errors = [];
             foreach ($violations as $v) {
@@ -82,13 +87,41 @@ final class SearchArtisanController
             return new JsonResponse(['errors' => $errors], JsonResponse::HTTP_BAD_REQUEST);
         }
 
-        // Pas de logique métier ici (P2-04.3+ repo). On renvoie le contrat standard.
+        // Appel repo + pagination
+        $paginator = $repo->searchByFilters($filters, $page, $perPage);
+        $total = \count($paginator);
+
+        // Transformer résultat minimal (name, ville, catégories, nb_services_publies)
+        $data = [];
+        foreach ($paginator as $profile) {
+            $categories = [];
+            $publishedCount = 0;
+
+            /** @var ArtisanService $svc */
+            foreach ($profile->getArtisanServices() as $svc) {
+                if (ArtisanServiceStatus::ACTIVE === $svc->getStatus()) {
+                    ++$publishedCount;
+                    $cat = $svc->getServiceDefinition()?->getCategory()?->getSlug();
+                    if ($cat) {
+                        $categories[$cat] = true;
+                    }
+                }
+            }
+
+            $data[] = [
+                'nom' => $profile->getDisplayName(),
+                'ville' => $profile->getCommune(),
+                'categories' => array_keys($categories),
+                'nb_services_publies' => $publishedCount,
+            ];
+        }
+
         return new JsonResponse([
-            'data' => [],
+            'data' => $data,
             'meta' => [
                 'page' => $page,
                 'per_page' => $perPage,
-                'total' => 0,
+                'total' => $total,
                 'filters' => array_filter($filters, static fn ($v) => null !== $v && '' !== $v),
             ],
         ], JsonResponse::HTTP_OK);

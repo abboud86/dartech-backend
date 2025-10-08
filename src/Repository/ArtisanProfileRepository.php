@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\ArtisanProfile;
+use App\Enum\ArtisanServiceStatus;
+use App\Enum\KycStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
@@ -17,8 +19,7 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
     }
 
     /**
-     * Search artisans by optional filters (city, category, serviceDefinition),
-     * only verified profiles having at least one published service.
+     * @param array{city?:string,category?:string,serviceDefinition?:string} $filters
      *
      * @return Paginator<ArtisanProfile>
      */
@@ -29,13 +30,13 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
             ->innerJoin('s.serviceDefinition', 'sd')
             ->innerJoin('sd.category', 'c')
             ->where('a.kycStatus = :kyc')
-            ->andWhere('s.published = true')
-            ->setParameter('kyc', 'verified')
+            ->andWhere('s.status = :active')
+            ->setParameter('kyc', KycStatus::VERIFIED)
+            ->setParameter('active', ArtisanServiceStatus::ACTIVE)
             ->groupBy('a.id');
 
-        // dynamic filters
         if (!empty($filters['city'])) {
-            $qb->andWhere('LOWER(a.city) = LOWER(:city)')
+            $qb->andWhere('LOWER(a.commune) = LOWER(:city)')
                ->setParameter('city', $filters['city']);
         }
 
@@ -49,7 +50,6 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
                ->setParameter('svc', $filters['serviceDefinition']);
         }
 
-        // defensive pagination
         $qb->setFirstResult(($page - 1) * $perPage)
            ->setMaxResults($perPage)
            ->orderBy('a.id', 'ASC');
