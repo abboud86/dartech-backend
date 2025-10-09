@@ -11,6 +11,9 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 
+/**
+ * @extends ServiceEntityRepository<ArtisanProfile>
+ */
 final class ArtisanProfileRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
@@ -49,23 +52,24 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
                ->setParameter('svc', $filters['serviceDefinition']);
         }
 
-        // Tri (pro, sans createdAt sur le profil)
+        // Tri
         if ('recent' === $sort) {
-            // Récents = dernière publication d’un service actif
-            $qb->addSelect('MAX(s.publishedAt) AS HIDDEN last_pub')
-               ->orderBy('last_pub', 'DESC')
+            // Récents = profils les plus récents (créés récemment)
+            $qb->orderBy('a.createdAt', 'DESC')
                ->addOrderBy('a.id', 'DESC');
-        } else { // relevance (défaut)
+        } else {
+            // Pertinence = nb de services actifs, puis dernière publication, puis fraicheur du profil
             $qb->addSelect('COUNT(s.id) AS HIDDEN services_count')
                ->addSelect('MAX(s.publishedAt) AS HIDDEN last_pub')
                ->orderBy('services_count', 'DESC')
                ->addOrderBy('last_pub', 'DESC')
+               ->addOrderBy('a.createdAt', 'DESC')
                ->addOrderBy('a.id', 'DESC');
         }
 
-        // Pagination
-        $qb->setFirstResult(($page - 1) * $perPage)
-           ->setMaxResults($perPage);
+        // Pagination défensive
+        $qb->setFirstResult(max(0, ($page - 1) * $perPage))
+           ->setMaxResults(max(1, $perPage));
 
         return new Paginator($qb->getQuery(), true);
     }

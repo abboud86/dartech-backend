@@ -12,6 +12,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ArtisanProfileRepository::class)]
+#[ORM\HasLifecycleCallbacks]
 class ArtisanProfile
 {
     #[ORM\Id]
@@ -63,6 +64,30 @@ class ArtisanProfile
      */
     #[ORM\OneToMany(targetEntity: ArtisanService::class, mappedBy: 'artisanProfile')]
     private Collection $artisanServices;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
+    private \DateTimeImmutable $createdAt;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $updatedAt = null;
+
+    public function __construct()
+    {
+        $this->kycStatus = KycStatus::PENDING;
+        $this->artisanServices = new ArrayCollection();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        $this->createdAt = new \DateTimeImmutable();
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTimeImmutable();
+    }
 
     public function getId(): ?int
     {
@@ -176,12 +201,6 @@ class ArtisanProfile
         throw new DomainException(sprintf('Transition KYC interdite: %s → %s', $from->value, $to->value));
     }
 
-    public function __construct()
-    {
-        $this->kycStatus = KycStatus::PENDING;
-        $this->artisanServices = new ArrayCollection();
-    }
-
     /**
      * @return Collection<int, ArtisanService>
      */
@@ -210,5 +229,15 @@ class ArtisanProfile
         }
 
         return $this;
+    }
+
+    public function getCreatedAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->updatedAt;
     }
 }
