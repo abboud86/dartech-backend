@@ -118,7 +118,7 @@ final class SearchArtisanController
             'total' => $total,
         ]);
 
-        // Mapping sortie
+        // Mapping sortie sortie
         $data = [];
         foreach ($paginator as $profile) {
             $categories = [];
@@ -143,15 +143,21 @@ final class SearchArtisanController
             ];
         }
 
-        return new JsonResponse([
-            'data' => $data,
-            'meta' => [
-                'page' => $page,
-                'per_page' => $perPage,
-                'total' => $total,
-                'sort' => $sort,
-                'filters' => array_filter($filters, static fn ($v) => null !== $v && '' !== $v),
+        return new JsonResponse(
+            [
+                'data' => $data,
+                'meta' => [
+                    'page' => $page,
+                    'per_page' => $perPage,
+                    'total' => $total,
+                    'sort' => $sort,
+                    'filters' => array_filter($filters, static fn ($v) => null !== $v && '' !== $v),
+                ],
             ],
-        ], JsonResponse::HTTP_OK);
+            JsonResponse::HTTP_OK,
+            [
+                'Cache-Control' => 'public, max-age=30, s-maxage=60',
+            ]
+        );
     }
 }
