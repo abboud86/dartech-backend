@@ -26,23 +26,22 @@ security:
         - App\Security\TokenAuthenticator
 
   access_control:
-    # 0) CORS preflight must never be blocked
+    # Préflight CORS toujours public
     - { path: ^/, roles: PUBLIC_ACCESS, methods: [OPTIONS] }
 
-    # 1) Public auth endpoints (POST)
+    # Auth endpoints publics
     - { path: ^/v1/auth/register$, roles: PUBLIC_ACCESS, methods: [POST] }
     - { path: ^/v1/auth/login$,    roles: PUBLIC_ACCESS, methods: [POST] }
     - { path: ^/v1/auth/logout$,   roles: PUBLIC_ACCESS, methods: [POST] }
 
-    # 2) Public read-only endpoints (GET)
-    - { path: ^/v1/artisans,   roles: PUBLIC_ACCESS, methods: [GET] }
-    - { path: ^/v1/categories$, roles: PUBLIC_ACCESS, methods: [GET] }
-    - { path: ^/v1/categories/, roles: PUBLIC_ACCESS, methods: [GET] } # for future /v1/categories/<slug>
-    - { path: ^/v1/services$,   roles: PUBLIC_ACCESS, methods: [GET] }
-    - { path: ^/v1/services/,   roles: PUBLIC_ACCESS, methods: [GET] }
+    # Endpoints read-only publics
+    - { path: ^/v1/artisans,                roles: PUBLIC_ACCESS, methods: [GET] }
+    - { path: ^/v1/categories,              roles: PUBLIC_ACCESS, methods: [GET] }
+    - { path: ^/v1/services,                roles: PUBLIC_ACCESS, methods: [GET] }
+    - { path: ^/v1/autocomplete,            roles: PUBLIC_ACCESS, methods: [GET] }
 
-    # 3) Health endpoints (public)
+    # Liveness/Readiness
     - { path: ^/healthz$, roles: PUBLIC_ACCESS }
 
-    # 4) Default: everything under /v1 requires auth
+    # Tout le reste de l'API v1 est protégé
     - { path: ^/v1, roles: IS_AUTHENTICATED_FULLY }

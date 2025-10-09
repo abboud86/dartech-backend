@@ -1,24 +1,21 @@
 parameters: { }
 
 services:
-    _defaults:
-        autowire: true
-        autoconfigure: true
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
 
-    App\:
-        resource: '../src/'
-        exclude:
-            - '../src/DependencyInjection/'
-            - '../src/Entity/'
-            - '../src/Kernel.php'
-            - '../src/Tests/'
+  # Enregistre tout le code App\ comme services (sauf exclusions)
+  App\:
+    resource: '../src/'
+    exclude:
+      - '../src/DependencyInjection/'
+      - '../src/Entity/'
+      - '../src/Kernel.php'
 
-    # EntryPoint avec logger de channel "security"
-    app.security.entry_point:
-        class: App\Security\JsonUnauthorizedEntryPoint
-        arguments:
-            $securityLogger: '@monolog.logger.security'
-
-    App\Security\TokenAuthenticator:
-        arguments:
-            $securityLogger: '@monolog.logger.security'
+  # Controllers: doivent être PUBLICS + tag 'controller.service_arguments'
+  App\Controller\:
+    resource: '../src/Controller/'
+    public: true
+    tags: ['controller.service_arguments']
