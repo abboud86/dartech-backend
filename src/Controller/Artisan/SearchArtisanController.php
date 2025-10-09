@@ -7,6 +7,7 @@ namespace App\Controller\Artisan;
 use App\Entity\ArtisanService;
 use App\Enum\ArtisanServiceStatus;
 use App\Repository\ArtisanProfileRepository;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -24,20 +25,20 @@ final class SearchArtisanController
         Request $request,
         ValidatorInterface $validator,
         ArtisanProfileRepository $repo,
+        LoggerInterface $logger,
     ): JsonResponse {
-        // Pagination
+        // Lecture brute
         $page = $request->query->getInt('page', self::DEFAULT_PAGE);
         $perPage = $request->query->getInt('per_page', self::DEFAULT_PER_PAGE);
-
-        // Tri + Filtres
         $sort = (string) $request->query->get('sort', 'relevance'); // relevance|recent
+
         $filters = [
             'city' => $request->query->get('city'),
             'category' => $request->query->get('category'),
             'serviceDefinition' => $request->query->get('serviceDefinition'),
         ];
 
-        // Contraintes
+        // Validation (doc Symfony Validator)
         $constraints = new Assert\Collection(
             fields: [
                 'page' => new Assert\Sequentially([
@@ -93,10 +94,31 @@ final class SearchArtisanController
             return new JsonResponse(['errors' => $errors], JsonResponse::HTTP_BAD_REQUEST);
         }
 
-        // Repo call (repo supportera $sort à l'étape C.2)
+        // Pagination défensive (clamp) : sécurité runtime même si validation OK
+        if ($page < 1) {
+            $page = self::DEFAULT_PAGE;
+        }
+        if ($perPage < 1) {
+            $perPage = self::DEFAULT_PER_PAGE;
+        }
+        if ($perPage > self::MAX_PER_PAGE) {
+            $perPage = self::MAX_PER_PAGE;
+        }
+
+        // Recherche
         $paginator = $repo->searchByFilters($filters, $page, $perPage, $sort);
         $total = \count($paginator);
 
+        // Log observabilité
+        $logger->info('Artisans search', [
+            'filters' => array_filter($filters, static fn ($v) => null !== $v && '' !== $v),
+            'sort' => $sort,
+            'page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+        ]);
+
+        // Mapping sortie
         $data = [];
         foreach ($paginator as $profile) {
             $categories = [];
