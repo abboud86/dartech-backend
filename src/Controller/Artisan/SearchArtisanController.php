@@ -29,7 +29,8 @@ final class SearchArtisanController
         $page = $request->query->getInt('page', self::DEFAULT_PAGE);
         $perPage = $request->query->getInt('per_page', self::DEFAULT_PER_PAGE);
 
-        // Filtres (read-only)
+        // Tri + Filtres
+        $sort = (string) $request->query->get('sort', 'relevance'); // relevance|recent
         $filters = [
             'city' => $request->query->get('city'),
             'category' => $request->query->get('category'),
@@ -48,6 +49,10 @@ final class SearchArtisanController
                     new Assert\NotBlank(),
                     new Assert\Type('integer'),
                     new Assert\Range(min: 1, max: self::MAX_PER_PAGE),
+                ]),
+                'sort' => new Assert\Sequentially([
+                    new Assert\Type('string'),
+                    new Assert\Choice(['relevance', 'recent']),
                 ]),
                 'city' => new Assert\Optional([
                     new Assert\Type('string'),
@@ -69,6 +74,7 @@ final class SearchArtisanController
         $input = [
             'page' => $page,
             'per_page' => $perPage,
+            'sort' => $sort,
             'city' => $filters['city'],
             'category' => $filters['category'],
             'serviceDefinition' => $filters['serviceDefinition'],
@@ -87,11 +93,10 @@ final class SearchArtisanController
             return new JsonResponse(['errors' => $errors], JsonResponse::HTTP_BAD_REQUEST);
         }
 
-        // Appel repo + pagination
-        $paginator = $repo->searchByFilters($filters, $page, $perPage);
+        // Repo call (repo supportera $sort à l'étape C.2)
+        $paginator = $repo->searchByFilters($filters, $page, $perPage, $sort);
         $total = \count($paginator);
 
-        // Transformer résultat minimal (name, ville, catégories, nb_services_publies)
         $data = [];
         foreach ($paginator as $profile) {
             $categories = [];
@@ -122,6 +127,7 @@ final class SearchArtisanController
                 'page' => $page,
                 'per_page' => $perPage,
                 'total' => $total,
+                'sort' => $sort,
                 'filters' => array_filter($filters, static fn ($v) => null !== $v && '' !== $v),
             ],
         ], JsonResponse::HTTP_OK);
