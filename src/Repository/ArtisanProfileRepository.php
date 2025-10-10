@@ -73,4 +73,45 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
 
         return new Paginator($qb->getQuery(), true);
     }
+
+    /**
+     * Lecture publique: profil vérifié par slug, avec services actifs préchargés.
+     * - Ne remonte que les profils KYC vérifiés.
+     * - Précharge les services actifs (LEFT JOIN pour ne pas filtrer l'artisan si 0 service).
+     */
+    public function findOnePublicBySlug(string $slug): ?ArtisanProfile
+    {
+        $qb = $this->createQueryBuilder('a')
+            ->leftJoin('a.artisanServices', 's', 'WITH', 's.status = :active')
+            ->addSelect('s')
+            ->where('a.slug = :slug')
+            ->andWhere('a.kycStatus = :kyc')
+            ->setParameter('slug', $slug)
+            ->setParameter('kyc', KycStatus::VERIFIED)
+            ->setParameter('active', ArtisanServiceStatus::ACTIVE)
+            ->setMaxResults(1);
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * Lecture publique par identifiant public: User.id (ULID).
+     * - Profil KYC vérifié
+     * - Précharge services actifs en LEFT JOIN (ne filtre pas l'artisan s'il n'en a pas).
+     */
+    public function findOnePublicByPublicId(string $publicId): ?ArtisanProfile
+    {
+        $qb = $this->createQueryBuilder('a')
+            ->innerJoin('a.user', 'u')
+            ->leftJoin('a.artisanServices', 's', 'WITH', 's.status = :active')
+            ->addSelect('s')
+            ->andWhere('u.id = :publicId')
+            ->andWhere('a.kycStatus = :kyc')
+            ->setParameter('publicId', $publicId)
+            ->setParameter('kyc', KycStatus::VERIFIED)
+            ->setParameter('active', ArtisanServiceStatus::ACTIVE)
+            ->setMaxResults(1);
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
 }
