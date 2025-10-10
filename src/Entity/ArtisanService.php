@@ -14,15 +14,25 @@ use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Constraints\Callback;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
-#[ORM\HasLifecycleCallbacks]
-#[ORM\Table(name: 'artisan_service')]
-#[ORM\UniqueConstraint(name: 'UNIQ_artisan_slug', columns: ['artisan_profile_id', 'slug'])]
-#[ORM\Index(name: 'IDX_artisan_profile', columns: ['artisan_profile_id'])]
-#[ORM\Index(name: 'IDX_service_definition', columns: ['service_definition_id'])]
-#[ORM\Index(name: 'IDX_status', columns: ['status'])]
-#[UniqueEntity(fields: ['artisanProfile', 'slug'], message: 'Slug must be unique per artisan')]
-#[SingleActivePublication] // <- pas de param "message" ici
 #[ORM\Entity(repositoryClass: ArtisanServiceRepository::class)]
+#[ORM\HasLifecycleCallbacks]
+#[ORM\Table(
+    name: 'artisan_service',
+    uniqueConstraints: [
+        new ORM\UniqueConstraint(
+            name: 'UNIQ_artisan_slug',
+            columns: ['artisan_profile_id', 'slug']
+        ),
+    ],
+    indexes: [
+        new ORM\Index(name: 'IDX_artisan_profile', columns: ['artisan_profile_id']),
+        new ORM\Index(name: 'IDX_service_definition', columns: ['service_definition_id']),
+        new ORM\Index(name: 'IDX_status', columns: ['status']),
+        new ORM\Index(name: 'IDX_published_at', columns: ['published_at']),
+    ]
+)]
+#[UniqueEntity(fields: ['artisanProfile', 'slug'], message: 'Slug must be unique per artisan')]
+#[SingleActivePublication] // règle métier: 1 seul service actif publié par artisan
 class ArtisanService
 {
     #[ORM\Id]
@@ -78,6 +88,12 @@ class ArtisanService
         if (null === $this->id) {
             $this->id = new Ulid();
         }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTimeImmutable();
     }
 
     public function getId(): ?Ulid
@@ -215,12 +231,6 @@ class ArtisanService
         $this->updatedAt = $updatedAt;
 
         return $this;
-    }
-
-    #[ORM\PreUpdate]
-    public function onPreUpdate(): void
-    {
-        $this->updatedAt = new \DateTimeImmutable();
     }
 
     #[Callback('validatePublishedAt')]
