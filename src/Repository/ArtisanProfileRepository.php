@@ -101,17 +101,48 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
      */
     public function findOnePublicByPublicId(string $publicId): ?ArtisanProfile
     {
+        // Si le slug n'est pas un ULID valide → 404 (on renvoie null)
+        try {
+            $ulid = new \Symfony\Component\Uid\Ulid($publicId);
+        } catch (\Throwable) {
+            return null;
+        }
+
         $qb = $this->createQueryBuilder('a')
             ->innerJoin('a.user', 'u')
             ->leftJoin('a.artisanServices', 's', 'WITH', 's.status = :active')
             ->addSelect('s')
-            ->andWhere('u.id = :publicId')
+            ->andWhere('u.id = :uid')
             ->andWhere('a.kycStatus = :kyc')
-            ->setParameter('publicId', $publicId)
+            ->setParameter('uid', $ulid, 'ulid') // ✅ clé : binder en type "ulid"
             ->setParameter('kyc', KycStatus::VERIFIED)
             ->setParameter('active', ArtisanServiceStatus::ACTIVE)
             ->setMaxResults(1);
 
         return $qb->getQuery()->getOneOrNullResult();
     }
+
+    /**
+     * Lecture d'une prévisualisation du portfolio (≤ $limit).
+     * Zéro supposition tant qu'aucune entité média n'existe : on renvoie une liste vide.
+     *
+     * @return list<string> URLs publiques de médias
+     */
+    public function findPortfolioPreview(ArtisanProfile $artisan, int $limit = 4): array
+    {
+        // Placeholder contrôlé : retour vide en attendant la vraie source (entité Media/Portfolio).
+        // Invariants :
+        //  - $limit >= 0
+        //  - tableau indexé (list<string>)
+        if ($limit <= 0) {
+            return [];
+        }
+
+        return [];
+    }
+
+    /*
+     * Lecture publique par ID public (User.id ULID), profil KYC VERIFIED + services actifs préchargés.
+     * - Convertit le slug string en Ulid et le lie au type Doctrine "ulid" (PostgreSQL = uuid en BDD).
+     */
 }
