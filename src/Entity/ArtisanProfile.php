@@ -9,6 +9,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Uid\Ulid;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ArtisanProfileRepository::class)]
@@ -19,6 +20,12 @@ class ArtisanProfile
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
+
+    /**
+     * Identifiant public immuable (26 chars ULID canonical).
+     */
+    #[ORM\Column(length: 26, unique: true)]
+    private ?string $slug = null;
 
     #[ORM\Column(length: 80)]
     #[Assert\NotBlank(message: 'ap.display_name.not_blank', groups: ['create', 'update'])]
@@ -88,6 +95,11 @@ class ArtisanProfile
     public function onPrePersist(): void
     {
         $this->createdAt = new \DateTimeImmutable();
+
+        // Génération immuable du slug si absent
+        if (null === $this->slug) {
+            $this->slug = (string) new Ulid();
+        }
     }
 
     #[ORM\PreUpdate]
@@ -99,6 +111,14 @@ class ArtisanProfile
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    /**
+     * Identifiant public (ULID 26 chars, canonical).
+     */
+    public function getSlug(): ?string
+    {
+        return $this->slug;
     }
 
     public function getDisplayName(): ?string

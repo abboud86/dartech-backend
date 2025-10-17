@@ -10,6 +10,7 @@ use App\Enum\KycStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Ulid;
 
 /**
  * @extends ServiceEntityRepository<ArtisanProfile>
@@ -103,7 +104,7 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
     {
         // Si le slug n'est pas un ULID valide → 404 (on renvoie null)
         try {
-            $ulid = new \Symfony\Component\Uid\Ulid($publicId);
+            $ulid = new Ulid($publicId);
         } catch (\Throwable) {
             return null;
         }
@@ -114,12 +115,43 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
             ->addSelect('s')
             ->andWhere('u.id = :uid')
             ->andWhere('a.kycStatus = :kyc')
-            ->setParameter('uid', $ulid, 'ulid') // ✅ clé : binder en type "ulid"
+            ->setParameter('uid', $ulid, 'ulid') // ✅ binder en type "ulid"
             ->setParameter('kyc', KycStatus::VERIFIED)
             ->setParameter('active', ArtisanServiceStatus::ACTIVE)
             ->setMaxResults(1);
 
         return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * Méthode unifiée pour les contrôleurs : tente d'abord par slug,
+     * sinon alias legacy via User.id (ULID). Ne force pas la condition KYC.
+     */
+    public function findOneByPublicId(string $public): ?ArtisanProfile
+    {
+        $public = trim($public);
+        if ('' === $public) {
+            return null;
+        }
+
+        // 1) Slug direct
+        $bySlug = $this->findOneBy(['slug' => $public]);
+        if ($bySlug instanceof ArtisanProfile) {
+            return $bySlug;
+        }
+
+        // 2) Alias legacy : User.id (ULID)
+        if (Ulid::isValid($public)) {
+            return $this->createQueryBuilder('a')
+                ->innerJoin('a.user', 'u')
+                ->andWhere('u.id = :uid')
+                ->setParameter('uid', $public, 'ulid')
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getOneOrNullResult();
+        }
+
+        return null;
     }
 
     /**
