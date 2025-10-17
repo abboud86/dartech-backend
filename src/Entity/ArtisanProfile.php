@@ -71,10 +71,17 @@ class ArtisanProfile
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
+    /**
+     * @var Collection<int, Media>
+     */
+    #[ORM\OneToMany(targetEntity: Media::class, mappedBy: 'artisanProfile')]
+    private Collection $media;
+
     public function __construct()
     {
         $this->kycStatus = KycStatus::PENDING;
         $this->artisanServices = new ArrayCollection();
+        $this->media = new ArrayCollection();
     }
 
     #[ORM\PrePersist]
@@ -239,5 +246,35 @@ class ArtisanProfile
     public function getUpdatedAt(): ?\DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    /**
+     * @return Collection<int, Media>
+     */
+    public function getMedia(): Collection
+    {
+        return $this->media;
+    }
+
+    public function addMedium(Media $medium): static
+    {
+        if (!$this->media->contains($medium)) {
+            $this->media->add($medium);
+            $medium->setArtisanProfile($this);
+        }
+
+        return $this;
+    }
+
+    public function removeMedium(Media $medium): static
+    {
+        if ($this->media->removeElement($medium)) {
+            // set the owning side to null (unless already changed)
+            if ($medium->getArtisanProfile() === $this) {
+                $medium->setArtisanProfile(null);
+            }
+        }
+
+        return $this;
     }
 }
