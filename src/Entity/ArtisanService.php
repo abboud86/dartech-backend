@@ -16,21 +16,15 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: ArtisanServiceRepository::class)]
 #[ORM\HasLifecycleCallbacks]
-#[ORM\Table(
-    name: 'artisan_service',
-    uniqueConstraints: [
-        new ORM\UniqueConstraint(
-            name: 'UNIQ_artisan_slug',
-            columns: ['artisan_profile_id', 'slug']
-        ),
-    ],
-    indexes: [
-        new ORM\Index(name: 'IDX_artisan_profile', columns: ['artisan_profile_id']),
-        new ORM\Index(name: 'IDX_service_definition', columns: ['service_definition_id']),
-        new ORM\Index(name: 'IDX_status', columns: ['status']),
-        new ORM\Index(name: 'IDX_published_at', columns: ['published_at']),
-    ]
+#[ORM\Table(name: 'artisan_service')]
+#[ORM\UniqueConstraint(
+    name: 'UNIQ_artisan_slug',
+    columns: ['artisan_profile_id', 'slug']
 )]
+#[ORM\Index(name: 'IDX_artisan_profile', columns: ['artisan_profile_id'])]
+#[ORM\Index(name: 'IDX_service_definition', columns: ['service_definition_id'])]
+#[ORM\Index(name: 'IDX_status', columns: ['status'])]
+#[ORM\Index(name: 'IDX_published_at', columns: ['published_at'])]
 #[UniqueEntity(fields: ['artisanProfile', 'slug'], message: 'Slug must be unique per artisan')]
 #[SingleActivePublication] // règle métier: 1 seul service actif publié par artisan
 class ArtisanService

@@ -54,11 +54,9 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
 
         // Tri
         if ('recent' === $sort) {
-            // Récents = profils les plus récents (créés récemment)
             $qb->orderBy('a.createdAt', 'DESC')
                ->addOrderBy('a.id', 'DESC');
         } else {
-            // Pertinence = nb de services actifs, puis dernière publication, puis fraicheur du profil
             $qb->addSelect('COUNT(s.id) AS HIDDEN services_count')
                ->addSelect('MAX(s.publishedAt) AS HIDDEN last_pub')
                ->orderBy('services_count', 'DESC')
@@ -72,5 +70,85 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
            ->setMaxResults(max(1, $perPage));
 
         return new Paginator($qb->getQuery(), true);
+    }
+
+    /**
+     * Lecture publique: profil vérifié par slug, avec services actifs préchargés.
+     * - Ne remonte que les profils KYC vérifiés.
+     * - Précharge les services actifs (LEFT JOIN pour ne pas filtrer l'artisan si 0 service).
+     */
+    public function findOnePublicBySlug(string $slug): ?ArtisanProfile
+    {
+        $qb = $this->createQueryBuilder('a')
+            ->leftJoin('a.artisanServices', 's', 'WITH', 's.status = :active')
+            ->addSelect('s')
+            ->where('a.slug = :slug')
+            ->andWhere('a.kycStatus = :kyc')
+            ->setParameter('slug', $slug)
+            ->setParameter('kyc', KycStatus::VERIFIED)
+            ->setParameter('active', ArtisanServiceStatus::ACTIVE)
+            ->setMaxResults(1);
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * Lecture publique par identifiant public: User.id (ULID).
+     * - Profil KYC vérifié
+     * - Précharge services actifs en LEFT JOIN (ne filtre pas l'artisan s'il n'en a pas).
+     */
+    public function findOnePublicByPublicId(string $publicId): ?ArtisanProfile
+    {
+        // Si le slug n'est pas un ULID valide → 404 (on renvoie null)
+        try {
+            $ulid = new \Symfony\Component\Uid\Ulid($publicId);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $qb = $this->createQueryBuilder('a')
+            ->innerJoin('a.user', 'u')
+            ->leftJoin('a.artisanServices', 's', 'WITH', 's.status = :active')
+            ->addSelect('s')
+            ->andWhere('u.id = :uid')
+            ->andWhere('a.kycStatus = :kyc')
+            ->setParameter('uid', $ulid, 'ulid') // ✅ clé : binder en type "ulid"
+            ->setParameter('kyc', KycStatus::VERIFIED)
+            ->setParameter('active', ArtisanServiceStatus::ACTIVE)
+            ->setMaxResults(1);
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * ✅ Identifiant public strict: uniquement par slug (API unifiée pour les contrôleurs).
+     */
+    public function findOneByPublicId(string $public): ?ArtisanProfile
+    {
+        $public = trim($public);
+        if ('' === $public) {
+            return null;
+        }
+
+        return $this->findOneBy(['slug' => $public]);
+    }
+
+    /**
+     * Lecture d'une prévisualisation du portfolio (≤ $limit).
+     * Zéro supposition tant qu'aucune entité média n'existe : on renvoie une liste vide.
+     *
+     * @return list<string> URLs publiques de médias
+     */
+    public function findPortfolioPreview(ArtisanProfile $artisan, int $limit = 4): array
+    {
+        // Placeholder contrôlé : retour vide en attendant la vraie source (entité Media/Portfolio).
+        // Invariants :
+        //  - $limit >= 0
+        //  - tableau indexé (list<string>)
+        if ($limit <= 0) {
+            return [];
+        }
+
+        return [];
     }
 }

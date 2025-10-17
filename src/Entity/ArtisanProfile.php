@@ -9,6 +9,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Uid\Ulid;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ArtisanProfileRepository::class)]
@@ -19,6 +20,12 @@ class ArtisanProfile
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
+
+    /**
+     * Identifiant public immuable (26 chars ULID canonical).
+     */
+    #[ORM\Column(length: 26, unique: true)]
+    private ?string $slug = null;
 
     #[ORM\Column(length: 80)]
     #[Assert\NotBlank(message: 'ap.display_name.not_blank', groups: ['create', 'update'])]
@@ -71,16 +78,28 @@ class ArtisanProfile
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
+    /**
+     * @var Collection<int, Media>
+     */
+    #[ORM\OneToMany(targetEntity: Media::class, mappedBy: 'artisanProfile')]
+    private Collection $media;
+
     public function __construct()
     {
         $this->kycStatus = KycStatus::PENDING;
         $this->artisanServices = new ArrayCollection();
+        $this->media = new ArrayCollection();
     }
 
     #[ORM\PrePersist]
     public function onPrePersist(): void
     {
         $this->createdAt = new \DateTimeImmutable();
+
+        // Génération immuable du slug si absent
+        if (null === $this->slug) {
+            $this->slug = (string) new Ulid();
+        }
     }
 
     #[ORM\PreUpdate]
@@ -92,6 +111,14 @@ class ArtisanProfile
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    /**
+     * Identifiant public (ULID 26 chars, canonical).
+     */
+    public function getSlug(): ?string
+    {
+        return $this->slug;
     }
 
     public function getDisplayName(): ?string
@@ -239,5 +266,35 @@ class ArtisanProfile
     public function getUpdatedAt(): ?\DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    /**
+     * @return Collection<int, Media>
+     */
+    public function getMedia(): Collection
+    {
+        return $this->media;
+    }
+
+    public function addMedium(Media $medium): static
+    {
+        if (!$this->media->contains($medium)) {
+            $this->media->add($medium);
+            $medium->setArtisanProfile($this);
+        }
+
+        return $this;
+    }
+
+    public function removeMedium(Media $medium): static
+    {
+        if ($this->media->removeElement($medium)) {
+            // set the owning side to null (unless already changed)
+            if ($medium->getArtisanProfile() === $this) {
+                $medium->setArtisanProfile(null);
+            }
+        }
+
+        return $this;
     }
 }
