@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
-final class Version20251017172400 extends AbstractMigration
+final class Version20251017183711 extends AbstractMigration
 {
     public function getDescription(): string
     {
@@ -28,7 +28,8 @@ final class Version20251017172400 extends AbstractMigration
         $this->addSql('COMMENT ON COLUMN access_token.revoked_at IS \'(DC2Type:datetime_immutable)\'');
         $this->addSql('COMMENT ON COLUMN access_token.created_at IS \'(DC2Type:datetime_immutable)\'');
         $this->addSql('COMMENT ON COLUMN access_token.last_used_at IS \'(DC2Type:datetime_immutable)\'');
-        $this->addSql('CREATE TABLE artisan_profile (id SERIAL NOT NULL, user_id UUID NOT NULL, display_name VARCHAR(80) NOT NULL, phone VARCHAR(20) NOT NULL, bio TEXT DEFAULT NULL, wilaya VARCHAR(64) NOT NULL, commune VARCHAR(64) NOT NULL, kyc_status VARCHAR(255) NOT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, updated_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, PRIMARY KEY(id))');
+        $this->addSql('CREATE TABLE artisan_profile (id SERIAL NOT NULL, user_id UUID NOT NULL, slug VARCHAR(26) NOT NULL, display_name VARCHAR(80) NOT NULL, phone VARCHAR(20) NOT NULL, bio TEXT DEFAULT NULL, wilaya VARCHAR(64) NOT NULL, commune VARCHAR(64) NOT NULL, kyc_status VARCHAR(255) NOT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, updated_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, PRIMARY KEY(id))');
+        $this->addSql('CREATE UNIQUE INDEX UNIQ_B5D83F1E989D9B62 ON artisan_profile (slug)');
         $this->addSql('CREATE UNIQUE INDEX UNIQ_B5D83F1EA76ED395 ON artisan_profile (user_id)');
         $this->addSql('COMMENT ON COLUMN artisan_profile.user_id IS \'(DC2Type:ulid)\'');
         $this->addSql('COMMENT ON COLUMN artisan_profile.created_at IS \'(DC2Type:datetime_immutable)\'');
