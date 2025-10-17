@@ -26,7 +26,7 @@ final class ArtisanPortfolioPreviewTest extends WebTestCase
     private function truncateForIsolation(): void
     {
         $conn = $this->em()->getConnection();
-        $platform = $conn->getDatabasePlatform(); // DBAL 3/4: identify by class
+        $platform = $conn->getDatabasePlatform();
 
         if ($platform instanceof PostgreSQLPlatform) {
             $conn->executeStatement('TRUNCATE TABLE media RESTART IDENTITY CASCADE');
@@ -49,30 +49,23 @@ final class ArtisanPortfolioPreviewTest extends WebTestCase
             return;
         }
 
-        // Fallback générique pour d'autres moteurs (SQLite, etc.)
         $conn->executeStatement('DELETE FROM media');
         $conn->executeStatement('DELETE FROM artisan_profile');
         $conn->executeStatement('DELETE FROM "user"');
     }
 
-    /**
-     * Fabrique un User persistant, minimal mais valide pour ta mapping.
-     */
     private function makeUser(string $email): User
     {
         $user = (new User())
             ->setEmail($email)
-            ->setPassword('test-password') // pas besoin d'un hash pour le test
-            ->setRoles([]);                // ROLE_USER sera ajouté par getRoles()
+            ->setPassword('test-password')
+            ->setRoles([]);
 
         $this->em()->persist($user);
 
         return $user;
     }
 
-    /**
-     * Fabrique un ArtisanProfile valide et lié à un User (owning side).
-     */
     private function makeProfile(string $displayName, string $phone, string $wilaya, string $commune, string $email): ArtisanProfile
     {
         $user = $this->makeUser($email);
@@ -83,7 +76,6 @@ final class ArtisanPortfolioPreviewTest extends WebTestCase
             ->setWilaya($wilaya)
             ->setCommune($commune);
 
-        // Owning side: ArtisanProfile possède la FK user_id NOT NULL
         $profile->setUser($user);
 
         $this->em()->persist($profile);
@@ -106,7 +98,7 @@ final class ArtisanPortfolioPreviewTest extends WebTestCase
             'empty@example.test'
         );
 
-        $client->request('GET', "/v1/artisans/{$profile->getId()}/portfolio/preview");
+        $client->request('GET', "/v1/artisans/{$profile->getSlug()}/portfolio/preview");
 
         $this->assertResponseIsSuccessful();
         $json = json_decode($client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
@@ -130,7 +122,6 @@ final class ArtisanPortfolioPreviewTest extends WebTestCase
         );
 
         $urls = [];
-        // 5 publics (createdAt croissant -> i=5 le plus récent)
         for ($i = 1; $i <= 5; ++$i) {
             $m = (new Media())
                 ->setPublicUrl("https://cdn.example.test/public-$i.jpg")
@@ -141,7 +132,6 @@ final class ArtisanPortfolioPreviewTest extends WebTestCase
             $urls[$i] = $m->getPublicUrl();
         }
 
-        // 1 privé (ignoré)
         $this->em()->persist(
             (new Media())
                 ->setPublicUrl('https://cdn.example.test/private-x.jpg')
@@ -152,7 +142,7 @@ final class ArtisanPortfolioPreviewTest extends WebTestCase
 
         $this->em()->flush();
 
-        $client->request('GET', "/v1/artisans/{$profile->getId()}/portfolio/preview");
+        $client->request('GET', "/v1/artisans/{$profile->getSlug()}/portfolio/preview");
 
         $this->assertResponseIsSuccessful();
         $json = json_decode($client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
@@ -160,7 +150,6 @@ final class ArtisanPortfolioPreviewTest extends WebTestCase
         $this->assertIsArray($json);
         $this->assertCount(4, $json);
 
-        // DESC by createdAt => 5,4,3,2
         $expected = [$urls[5], $urls[4], $urls[3], $urls[2]];
         $this->assertSame($expected, $json);
         $this->assertNotContains('https://cdn.example.test/private-x.jpg', $json);
@@ -192,7 +181,7 @@ final class ArtisanPortfolioPreviewTest extends WebTestCase
 
         $this->em()->flush();
 
-        $client->request('GET', "/v1/artisans/{$profile->getId()}/portfolio/preview");
+        $client->request('GET', "/v1/artisans/{$profile->getSlug()}/portfolio/preview");
 
         $this->assertResponseIsSuccessful();
         $json = json_decode($client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);

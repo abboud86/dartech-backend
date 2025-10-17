@@ -53,7 +53,7 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
         }
 
         // Tri
-        if ($sort === 'recent') {
+        if ('recent' === $sort) {
             $qb->orderBy('a.createdAt', 'DESC')
                ->addOrderBy('a.id', 'DESC');
         } else {
@@ -79,7 +79,7 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
      */
     public function findOnePublicBySlug(string $slug): ?ArtisanProfile
     {
-        return $this->createQueryBuilder('a')
+        $qb = $this->createQueryBuilder('a')
             ->leftJoin('a.artisanServices', 's', 'WITH', 's.status = :active')
             ->addSelect('s')
             ->where('a.slug = :slug')
@@ -87,19 +87,46 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
             ->setParameter('slug', $slug)
             ->setParameter('kyc', KycStatus::VERIFIED)
             ->setParameter('active', ArtisanServiceStatus::ACTIVE)
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
+            ->setMaxResults(1);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     /**
-     * ✅ Identifiant public strict: uniquement par slug.
-     * Aucun alias via User.id (ULID) pour éviter d’exposer des identifiants internes.
+     * Lecture publique par identifiant public: User.id (ULID).
+     * - Profil KYC vérifié
+     * - Précharge services actifs en LEFT JOIN (ne filtre pas l'artisan s'il n'en a pas).
+     */
+    public function findOnePublicByPublicId(string $publicId): ?ArtisanProfile
+    {
+        // Si le slug n'est pas un ULID valide → 404 (on renvoie null)
+        try {
+            $ulid = new \Symfony\Component\Uid\Ulid($publicId);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $qb = $this->createQueryBuilder('a')
+            ->innerJoin('a.user', 'u')
+            ->leftJoin('a.artisanServices', 's', 'WITH', 's.status = :active')
+            ->addSelect('s')
+            ->andWhere('u.id = :uid')
+            ->andWhere('a.kycStatus = :kyc')
+            ->setParameter('uid', $ulid, 'ulid') // ✅ clé : binder en type "ulid"
+            ->setParameter('kyc', KycStatus::VERIFIED)
+            ->setParameter('active', ArtisanServiceStatus::ACTIVE)
+            ->setMaxResults(1);
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * ✅ Identifiant public strict: uniquement par slug (API unifiée pour les contrôleurs).
      */
     public function findOneByPublicId(string $public): ?ArtisanProfile
     {
         $public = trim($public);
-        if ($public === '') {
+        if ('' === $public) {
             return null;
         }
 
@@ -107,18 +134,21 @@ final class ArtisanProfileRepository extends ServiceEntityRepository
     }
 
     /**
-     * Prévisualisation du portfolio (≤ $limit).
-     * Retourne une liste d'URL publiques (vide si aucune source).
+     * Lecture d'une prévisualisation du portfolio (≤ $limit).
+     * Zéro supposition tant qu'aucune entité média n'existe : on renvoie une liste vide.
      *
-     * @return list<string>
+     * @return list<string> URLs publiques de médias
      */
     public function findPortfolioPreview(ArtisanProfile $artisan, int $limit = 4): array
     {
+        // Placeholder contrôlé : retour vide en attendant la vraie source (entité Media/Portfolio).
+        // Invariants :
+        //  - $limit >= 0
+        //  - tableau indexé (list<string>)
         if ($limit <= 0) {
             return [];
         }
 
-        // Placeholder contrôlé tant que la source réelle (Media/Portfolio) n'est pas branchée côté domain.
         return [];
     }
 }
