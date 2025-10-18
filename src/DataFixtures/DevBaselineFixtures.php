@@ -6,6 +6,8 @@ namespace App\DataFixtures;
 
 use App\Entity\ArtisanProfile;
 use App\Entity\ArtisanService;
+use App\Entity\Category;
+use App\Entity\ServiceDefinition;
 use App\Entity\User;
 use App\Enum\ArtisanServiceStatus;
 use App\Enum\KycStatus;
@@ -23,14 +25,14 @@ final class DevBaselineFixtures extends Fixture
     {
         $now = new \DateTimeImmutable();
 
-        // 1) User
+        /** 1) User */
         $user = new User();
         $user->setEmail('artisan@example.test');
         $user->setRoles(['ROLE_USER']);
         $user->setPassword($this->hasher->hashPassword($user, 'password'));
         $om->persist($user);
 
-        // 2) ArtisanProfile (KYC = verified)
+        /** 2) ArtisanProfile (KYC = verified) */
         $ap = new ArtisanProfile();
         $ap->setUser($user);
         $ap->setDisplayName('Artisan Démo');
@@ -38,17 +40,40 @@ final class DevBaselineFixtures extends Fixture
         $ap->setBio('Profil de démonstration');
         $ap->setWilaya('Alger');
         $ap->setCommune('Bab Ezzouar');
-        // Robust against enum case name differences; uses backed value:
-        $ap->setKycStatus(KycStatus::from('LA_VALEUR_VERIFIED'));     // ex: 'verified' ou 'VERIFIED'
-
+        $ap->setKycStatus(KycStatus::from('verified'));
         $om->persist($ap);
 
-        // 3) ArtisanService (status = published)
+        /** 3) Category (obligatoire pour ServiceDefinition) */
+        $cat = $om->getRepository(Category::class)->findOneBy([]);
+        if (null === $cat) {
+            $cat = new Category();
+            $cat->setName('Général');
+            $cat->setSlug('general');
+            $om->persist($cat);
+            $om->flush();
+        }
+
+        /** 4) ServiceDefinition (category NOT NULL + schema minimal) */
+        $def = $om->getRepository(ServiceDefinition::class)->findOneBy([]);
+        if (null === $def) {
+            $def = new ServiceDefinition();
+            $def->setCategory($cat);
+            $def->setName('Service Démo');
+            $def->setSlug('service-demo');
+            $def->setAttributesSchema([]); // JSON minimal si requis
+            $om->persist($def);
+            $om->flush();
+        }
+
+        /** 5) ArtisanService (status = active) + liens + champs requis */
         $svc = new ArtisanService();
         $svc->setArtisanProfile($ap);
-        $svc->setStatus(ArtisanServiceStatus::from('LA_VALEUR_PUBLISHED')); // ex: 'published' ou 'PUBLISHED'
-        // Uncomment if your entity has a name/title field:
-        // $svc->setName('Service Démo');
+        $svc->setServiceDefinition($def);
+        $svc->setTitle('Service Démo (baseline)');
+        $svc->setSlug('service-demo-'.substr(md5((string) microtime(true)), 0, 6)); // unique
+        $svc->setStatus(ArtisanServiceStatus::from('active')); // ✔ enum réel
+        $svc->setUnitAmount(1000);        // ✔ NOT NULL
+        $svc->setCurrency('DZD');         // ✔ NOT NULL
         $svc->setCreatedAt($now);
         $om->persist($svc);
 
