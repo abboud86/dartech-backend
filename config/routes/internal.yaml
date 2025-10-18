@@ -1,0 +1,4 @@
+internal:
+  resource: '../../src/Controller/Internal/'
+  type: attribute
+  prefix: /_internal

@@ -1,4 +1,5 @@
-parameters: { }
+parameters:
+  app.version: '%env(string:APP_GIT_HASH)%'
 
 services:
   _defaults:
@@ -19,3 +20,9 @@ services:
     resource: '../src/Controller/'
     public: true
     tags: ['controller.service_arguments']
+
+  # Injection explicite pour VersionController
+  App\Controller\Internal\VersionController:
+    arguments:
+      $appVersion: '%app.version%'
+      $envName: '%kernel.environment%'

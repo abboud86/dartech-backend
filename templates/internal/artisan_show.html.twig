@@ -1,0 +1,66 @@
+{# Internal QA — Fiche artisan (read-only) #}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Internal • {{ artisan.displayName ?? 'Artisan' }}</title>
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;margin:24px;line-height:1.45}
+    h1{font-size:22px;margin:0 0 8px}
+    .muted{color:#666}
+    .tag{display:inline-block;padding:2px 6px;border:1px solid #ddd;border-radius:999px;font-size:12px;background:#f7f7f7;color:#333}
+    .grid{display:grid;grid-template-columns:160px 1fr;gap:8px 16px;max-width:900px}
+    table{width:100%;border-collapse:collapse;margin-top:16px}
+    th,td{border:1px solid #eee;padding:8px 10px;text-align:left}
+    th{background:#fafafa}
+    a.btn{display:inline-block;margin-top:12px;padding:8px 12px;border:1px solid #222;border-radius:8px;text-decoration:none}
+  </style>
+</head>
+<body>
+  <a class="btn" href="{{ path('internal_artisans') }}">← Retour à la liste</a>
+  <h1>{{ artisan.displayName ?? '—' }} <span class="tag">{{ artisan.slug }}</span></h1>
+  <p class="muted">KYC: <strong>{{ artisan.kycStatus.value }}</strong> • Créé le {{ artisan.createdAt ? artisan.createdAt|date('Y-m-d H:i') : '—' }}</p>
+
+  <div class="grid">
+    <div class="muted">Téléphone</div><div>{{ artisan.phone ?? '—' }}</div>
+    <div class="muted">Wilaya</div><div>{{ artisan.wilaya ?? '—' }}</div>
+    <div class="muted">Commune</div><div>{{ artisan.commune ?? '—' }}</div>
+    <div class="muted">Bio</div><div>{{ artisan.bio ?? '—' }}</div>
+  </div>
+
+  <h2>Services publiés (≥ 1)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Titre</th>
+        <th>Slug</th>
+        <th>Tarif</th>
+        <th>Statut</th>
+        <th>Créé le</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for s in services %}
+      {% if s.status.value == 'active' %}
+      <tr>
+        <td>{{ s.title ?? '—' }}</td>
+        <td><span class="tag">{{ s.slug ?? '—' }}</span></td>
+        <td>
+          {% if s.unitAmount is not null and s.currency is not null %}
+            {{ s.unitAmount }} {{ s.currency }}
+          {% else %} — {% endif %}
+        </td>
+        <td>{{ s.status.value }}</td>
+        <td>{{ s.createdAt ? s.createdAt|date('Y-m-d H:i') : '—' }}</td>
+      </tr>
+      {% endif %}
+    {% else %}
+      <tr><td colspan="5" class="muted">Aucun service “active”.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>
