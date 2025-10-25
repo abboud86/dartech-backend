@@ -12,9 +12,8 @@ use Symfony\Component\Workflow\Event\CompletedEvent;
 
 final class BookingWorkflowTimelineSubscriber
 {
-    public function __construct(
-        private readonly EntityManagerInterface $em,
-    ) {
+    public function __construct(private readonly EntityManagerInterface $em)
+    {
     }
 
     #[AsEventListener(event: 'workflow.booking.completed')]
@@ -25,7 +24,7 @@ final class BookingWorkflowTimelineSubscriber
             return;
         }
 
-        // Ne rien faire si le Booking n'est pas encore géré par Doctrine
+        // Ne rien faire si l'entity n'est pas encore gérée par Doctrine
         if (!$this->em->contains($subject)) {
             return;
         }
@@ -33,16 +32,17 @@ final class BookingWorkflowTimelineSubscriber
         $transition = $event->getTransition();
         $from = $transition->getFroms()[0] ?? null;
         $to = $transition->getTos()[0] ?? $subject->getStatusMarking();
+
         if (null === $to) {
             return;
         }
 
-        // ✅ Conformité tests actuels : actor NULL (sera géré dans une micro-étape dédiée)
+        // 👉 Conformément au test actuel: actor DOIT rester null.
         $timeline = new BookingTimeline(
             booking: $subject,
             toStatus: $to,
             fromStatus: $from,
-            actor: null,
+            actor: null,     // <— forcer null ici
             context: null,
             occurredAt: null,
         );
