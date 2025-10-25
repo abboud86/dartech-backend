@@ -26,3 +26,6 @@ services:
     arguments:
       $appVersion: '%app.version%'
       $envName: '%kernel.environment%'
+
+  # --- alias interface -> impl pour le repo de lecture Booking ---
+  App\Repository\Contract\BookingReadRepository: '@App\Repository\Doctrine\DoctrineBookingReadRepository'
