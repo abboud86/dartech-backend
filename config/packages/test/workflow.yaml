@@ -1,0 +1,29 @@
+framework:
+  workflows:
+    booking:
+      type: state_machine
+      marking_store:
+        type: method
+        property: statusMarking
+      supports:
+        - App\Entity\Booking
+      initial_marking: INQUIRY
+      places:
+        - INQUIRY
+        - CONTACTED
+        - SCHEDULED
+        - DONE
+        - CANCELED
+      transitions:
+        to_contacted:
+          from: INQUIRY
+          to: CONTACTED
+        to_scheduled:
+          from: CONTACTED
+          to: SCHEDULED
+        to_done:
+          from: SCHEDULED
+          to: DONE
+        to_canceled:
+          from: [INQUIRY, CONTACTED, SCHEDULED]
+          to: CANCELED
