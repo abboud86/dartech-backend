@@ -34,14 +34,14 @@ final class BookingPatchController extends AbstractController
             return $this->json(['error' => 'unauthorized'], 401);
         }
 
-        // 1) JSON d'abord (pour que invalid_json gagne sur un id moche)
+        // 1) JSON d'abord (invalid_json gagne même si l'ID est moche)
         try {
             $payload = $request->toArray();
         } catch (\Throwable) {
             return $this->json(['error' => 'invalid_json'], 400);
         }
 
-        // 2) Validation de l'ULID (même pattern que GET / Transition)
+        // 2) Validation de l'ULID
         try {
             $ulid = new Ulid($id);
         } catch (\Throwable) {
@@ -54,7 +54,10 @@ final class BookingPatchController extends AbstractController
             return $this->json(['error' => 'booking_not_found'], 404);
         }
 
-        // P3-02-06 (ownership) : on ajoutera plus tard booking->getClient() === $user
+        // 🔒 Ownership : un utilisateur ne peut modifier que ses propres bookings
+        if ($booking->getClient() !== $user) {
+            return $this->json(['error' => 'forbidden'], 403);
+        }
 
         // communication_channel optionnel
         if (\array_key_exists('communication_channel', $payload)) {
@@ -77,7 +80,7 @@ final class BookingPatchController extends AbstractController
             }
         }
 
-        // scheduled_at optionnel
+        // scheduled_at optionnel + règle métier 422
         if (\array_key_exists('scheduled_at', $payload)) {
             $rawScheduledAt = $payload['scheduled_at'];
 
@@ -94,7 +97,6 @@ final class BookingPatchController extends AbstractController
                     return $this->json(['error' => 'invalid_scheduled_at'], 400);
                 }
 
-                // Règle métier P3-02-05 : rendez-vous pas dans le passé, ni trop loin
                 $now = new \DateTimeImmutable();
                 $pastLimit = $now->modify('-5 minutes');
                 $futureLimit = $now->modify('+1 year');
@@ -107,7 +109,7 @@ final class BookingPatchController extends AbstractController
             }
         }
 
-        // estimated_amount optionnel (même logique que POST)
+        // estimated_amount optionnel + règle métier 422
         if (\array_key_exists('estimated_amount', $payload)) {
             $rawAmount = $payload['estimated_amount'];
 
@@ -136,7 +138,7 @@ final class BookingPatchController extends AbstractController
             }
         }
 
-        // On ne touche pas au statut ici (PATCH != transition de workflow)
+        // On ne touche pas au statut ici
         $this->em->flush();
 
         return $this->json([

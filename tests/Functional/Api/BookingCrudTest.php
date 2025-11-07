@@ -912,4 +912,191 @@ final class BookingCrudTest extends WebTestCase
         self::assertArrayHasKey('error', $data);
         self::assertSame('invalid_estimated_amount_business', $data['error']);
     }
+
+    public function testGetBooking403WhenNotOwner(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        $suffix = bin2hex(random_bytes(4));
+        $ownerEmail = "booking-owner+{$suffix}@example.test";
+        $otherEmail = "booking-other+{$suffix}@example.test";
+
+        // Clean éventuel
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email IN (:e)')
+            ->setParameter('e', [$ownerEmail, $otherEmail])
+            ->execute();
+
+        // User propriétaire
+        $owner = (new User())
+            ->setEmail($ownerEmail)
+            ->setPassword('x');
+        $em->persist($owner);
+
+        // User non propriétaire
+        $other = (new User())
+            ->setEmail($otherEmail)
+            ->setPassword('x');
+        $em->persist($other);
+
+        // Catégorie
+        $cat = (new Category())
+            ->setName('Plomberie OWNERSHIP '.$suffix)
+            ->setSlug('plomberie-ownership-'.$suffix);
+        $em->persist($cat);
+
+        // ServiceDefinition
+        $sd = (new ServiceDefinition())
+            ->setCategory($cat)
+            ->setName('Dépannage plomberie OWNERSHIP '.$suffix)
+            ->setSlug('depannage-plomberie-ownership-'.$suffix);
+        $em->persist($sd);
+
+        // ArtisanProfile (lié au owner, peu importe pour le test)
+        $ap = (new ArtisanProfile())
+            ->setUser($owner)
+            ->setDisplayName('Artisan OWNERSHIP')
+            ->setPhone('+213555000000')
+            ->setWilaya('Alger')
+            ->setCommune('Bab Ezzouar');
+        $em->persist($ap);
+
+        // ArtisanService
+        $as = (new ArtisanService())
+            ->setArtisanProfile($ap)
+            ->setServiceDefinition($sd)
+            ->setTitle('Intervention OWNERSHIP '.$suffix)
+            ->setSlug('intervention-ownership-'.$suffix)
+            ->setUnitAmount(20000)
+            ->setCurrency('DZD')
+            ->setStatus(ArtisanServiceStatus::DRAFT);
+        $em->persist($as);
+
+        // Booking appartenant au owner
+        $booking = new Booking();
+        $booking->setClient($owner);
+        $booking->setArtisanService($as);
+        $booking->setStatus(\App\Enum\BookingStatus::INQUIRY);
+        $booking->setCommunicationChannel(\App\Enum\CommunicationChannel::PHONE_CALL);
+        $em->persist($booking);
+
+        $em->flush();
+
+        $bookingId = (string) $booking->getId();
+
+        // Act : GET avec l'autre utilisateur (non propriétaire)
+        $client->request(
+            'GET',
+            '/api/bookings/'.$bookingId,
+            server: [
+                'HTTP_X_TEST_USER' => $otherEmail,
+            ]
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(403, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('forbidden', $data['error']);
+    }
+
+    public function testPatchBooking403WhenNotOwner(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        $suffix = bin2hex(random_bytes(4));
+        $ownerEmail = "booking-patch-owner+{$suffix}@example.test";
+        $otherEmail = "booking-patch-other+{$suffix}@example.test";
+
+        // Clean éventuel
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email IN (:e)')
+            ->setParameter('e', [$ownerEmail, $otherEmail])
+            ->execute();
+
+        // User propriétaire
+        $owner = (new User())
+            ->setEmail($ownerEmail)
+            ->setPassword('x');
+        $em->persist($owner);
+
+        // User non propriétaire
+        $other = (new User())
+            ->setEmail($otherEmail)
+            ->setPassword('x');
+        $em->persist($other);
+
+        // Catégorie
+        $cat = (new Category())
+            ->setName('Plomberie PATCH OWNERSHIP '.$suffix)
+            ->setSlug('plomberie-patch-ownership-'.$suffix);
+        $em->persist($cat);
+
+        // ServiceDefinition
+        $sd = (new ServiceDefinition())
+            ->setCategory($cat)
+            ->setName('Dépannage plomberie PATCH OWNERSHIP '.$suffix)
+            ->setSlug('depannage-plomberie-patch-ownership-'.$suffix);
+        $em->persist($sd);
+
+        // ArtisanProfile
+        $ap = (new ArtisanProfile())
+            ->setUser($owner)
+            ->setDisplayName('Artisan PATCH OWNERSHIP')
+            ->setPhone('+213555000000')
+            ->setWilaya('Alger')
+            ->setCommune('Bab Ezzouar');
+        $em->persist($ap);
+
+        // ArtisanService
+        $as = (new ArtisanService())
+            ->setArtisanProfile($ap)
+            ->setServiceDefinition($sd)
+            ->setTitle('Intervention PATCH OWNERSHIP '.$suffix)
+            ->setSlug('intervention-patch-ownership-'.$suffix)
+            ->setUnitAmount(20000)
+            ->setCurrency('DZD')
+            ->setStatus(ArtisanServiceStatus::DRAFT);
+        $em->persist($as);
+
+        // Booking appartenant au owner
+        $booking = new Booking();
+        $booking->setClient($owner);
+        $booking->setArtisanService($as);
+        $booking->setStatus(\App\Enum\BookingStatus::INQUIRY);
+        $booking->setCommunicationChannel(\App\Enum\CommunicationChannel::PHONE_CALL);
+        $em->persist($booking);
+
+        $em->flush();
+
+        $bookingId = (string) $booking->getId();
+
+        // Act : PATCH avec l'autre utilisateur (non propriétaire)
+        $client->request(
+            'PATCH',
+            '/api/bookings/'.$bookingId,
+            server: [
+                'HTTP_X_TEST_USER' => $otherEmail,
+            ],
+            content: \json_encode([
+                'estimated_amount' => 70000,
+            ], \JSON_THROW_ON_ERROR)
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(403, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('forbidden', $data['error']);
+    }
 }

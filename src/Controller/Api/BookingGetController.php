@@ -33,7 +33,7 @@ final class BookingGetController extends AbstractController
             return $this->json(['error' => 'unauthorized'], 401);
         }
 
-        // Validation de l'ULID (même pattern que BookingTransitionController)
+        // Validation de l'ULID
         try {
             $ulid = new Ulid($id);
         } catch (\Throwable) {
@@ -46,8 +46,10 @@ final class BookingGetController extends AbstractController
             return $this->json(['error' => 'booking_not_found'], 404);
         }
 
-        // Ownership stricte (user ne lit que ses bookings) viendra en P3-02-06.
-        // Ici on se contente de retourner la ressource.
+        // 🔒 Ownership : un utilisateur ne peut voir que ses propres bookings
+        if ($booking->getClient() !== $user) {
+            return $this->json(['error' => 'forbidden'], 403);
+        }
 
         return $this->json([
             'id' => (string) $booking->getId(),
