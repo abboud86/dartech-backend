@@ -29,3 +29,7 @@ services:
 
   # --- alias interface -> impl pour le repo de lecture Booking ---
   App\Repository\Contract\BookingReadRepository: '@App\Repository\Doctrine\DoctrineBookingReadRepository'
+ 
+  App\EventSubscriber\BookingWorkflowGuardSubscriber:
+    tags:
+      - { name: kernel.event_subscriber }
