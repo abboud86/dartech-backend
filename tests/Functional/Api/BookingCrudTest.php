@@ -532,7 +532,7 @@ final class BookingCrudTest extends WebTestCase
         $em->flush();
 
         $bookingId = (string) $booking->getId();
-        $newScheduledAt = new \DateTimeImmutable('2025-01-02T03:04:05+01:00');
+        $newScheduledAt = new \DateTimeImmutable('+1 day');
 
         // --- Act : PATCH /api/bookings/{id} authentifié ---
 
@@ -570,5 +570,346 @@ final class BookingCrudTest extends WebTestCase
 
         // updated_at doit être non nul après un PATCH
         self::assertNotNull($data['updated_at']);
+    }
+
+    public function testCreateBooking422WhenScheduledAtInPast(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        $suffix = bin2hex(random_bytes(4));
+        $email = "booking-create-past+{$suffix}@example.test";
+
+        // Clean éventuel
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email = :e')
+            ->setParameter('e', $email)
+            ->execute();
+
+        // User (client)
+        $user = (new User())
+            ->setEmail($email)
+            ->setPassword('x');
+        $em->persist($user);
+
+        // Catégorie
+        $cat = (new Category())
+            ->setName('Plomberie CREATE PAST '.$suffix)
+            ->setSlug('plomberie-create-past-'.$suffix);
+        $em->persist($cat);
+
+        // ServiceDefinition
+        $sd = (new ServiceDefinition())
+            ->setCategory($cat)
+            ->setName('Dépannage plomberie CREATE PAST '.$suffix)
+            ->setSlug('depannage-plomberie-create-past-'.$suffix);
+        $em->persist($sd);
+
+        // ArtisanProfile
+        $ap = (new ArtisanProfile())
+            ->setUser($user)
+            ->setDisplayName('Artisan Plombier CREATE PAST')
+            ->setPhone('+213555000000')
+            ->setWilaya('Alger')
+            ->setCommune('Bab Ezzouar');
+        $em->persist($ap);
+
+        // ArtisanService
+        $as = (new ArtisanService())
+            ->setArtisanProfile($ap)
+            ->setServiceDefinition($sd)
+            ->setTitle('Intervention plomberie CREATE PAST '.$suffix)
+            ->setSlug('intervention-plomberie-create-past-'.$suffix)
+            ->setUnitAmount(20000)
+            ->setCurrency('DZD')
+            ->setStatus(ArtisanServiceStatus::DRAFT);
+        $em->persist($as);
+
+        $em->flush();
+
+        $past = (new \DateTimeImmutable('-1 day'))->format(\DateTimeInterface::ATOM);
+
+        $client->request(
+            'POST',
+            '/api/bookings',
+            server: [
+                'HTTP_X_TEST_USER' => $email,
+            ],
+            content: \json_encode([
+                'artisan_service_id' => (string) $as->getId(),
+                'communication_channel' => 'WHATSAPP',
+                'scheduled_at' => $past,
+            ], \JSON_THROW_ON_ERROR)
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(422, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('invalid_scheduled_at_business', $data['error']);
+    }
+
+    public function testCreateBooking422WhenEstimatedAmountOutOfRange(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        $suffix = bin2hex(random_bytes(4));
+        $email = "booking-create-amount+{$suffix}@example.test";
+
+        // Clean éventuel
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email = :e')
+            ->setParameter('e', $email)
+            ->execute();
+
+        // User (client)
+        $user = (new User())
+            ->setEmail($email)
+            ->setPassword('x');
+        $em->persist($user);
+
+        // Catégorie
+        $cat = (new Category())
+            ->setName('Plomberie CREATE AMOUNT '.$suffix)
+            ->setSlug('plomberie-create-amount-'.$suffix);
+        $em->persist($cat);
+
+        // ServiceDefinition
+        $sd = (new ServiceDefinition())
+            ->setCategory($cat)
+            ->setName('Dépannage plomberie CREATE AMOUNT '.$suffix)
+            ->setSlug('depannage-plomberie-create-amount-'.$suffix);
+        $em->persist($sd);
+
+        // ArtisanProfile
+        $ap = (new ArtisanProfile())
+            ->setUser($user)
+            ->setDisplayName('Artisan Plombier CREATE AMOUNT')
+            ->setPhone('+213555000000')
+            ->setWilaya('Alger')
+            ->setCommune('Bab Ezzouar');
+        $em->persist($ap);
+
+        // ArtisanService
+        $as = (new ArtisanService())
+            ->setArtisanProfile($ap)
+            ->setServiceDefinition($sd)
+            ->setTitle('Intervention plomberie CREATE AMOUNT '.$suffix)
+            ->setSlug('intervention-plomberie-create-amount-'.$suffix)
+            ->setUnitAmount(20000)
+            ->setCurrency('DZD')
+            ->setStatus(ArtisanServiceStatus::DRAFT);
+        $em->persist($as);
+
+        $em->flush();
+
+        // Montant hors plage métier (trop bas)
+        $outOfRangeAmount = 100;
+
+        $client->request(
+            'POST',
+            '/api/bookings',
+            server: [
+                'HTTP_X_TEST_USER' => $email,
+            ],
+            content: \json_encode([
+                'artisan_service_id' => (string) $as->getId(),
+                'communication_channel' => 'WHATSAPP',
+                'estimated_amount' => $outOfRangeAmount,
+            ], \JSON_THROW_ON_ERROR)
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(422, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('invalid_estimated_amount_business', $data['error']);
+    }
+
+    public function testPatchBooking422WhenScheduledAtInPast(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        $suffix = bin2hex(random_bytes(4));
+        $email = "booking-patch-past+{$suffix}@example.test";
+
+        // Clean éventuel
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email = :e')
+            ->setParameter('e', $email)
+            ->execute();
+
+        // User (client)
+        $user = (new User())
+            ->setEmail($email)
+            ->setPassword('x');
+        $em->persist($user);
+
+        // Catégorie
+        $cat = (new Category())
+            ->setName('Plomberie PATCH PAST '.$suffix)
+            ->setSlug('plomberie-patch-past-'.$suffix);
+        $em->persist($cat);
+
+        // ServiceDefinition
+        $sd = (new ServiceDefinition())
+            ->setCategory($cat)
+            ->setName('Dépannage plomberie PATCH PAST '.$suffix)
+            ->setSlug('depannage-plomberie-patch-past-'.$suffix);
+        $em->persist($sd);
+
+        // ArtisanProfile
+        $ap = (new ArtisanProfile())
+            ->setUser($user)
+            ->setDisplayName('Artisan Plombier PATCH PAST')
+            ->setPhone('+213555000000')
+            ->setWilaya('Alger')
+            ->setCommune('Bab Ezzouar');
+        $em->persist($ap);
+
+        // ArtisanService
+        $as = (new ArtisanService())
+            ->setArtisanProfile($ap)
+            ->setServiceDefinition($sd)
+            ->setTitle('Intervention plomberie PATCH PAST '.$suffix)
+            ->setSlug('intervention-plomberie-patch-past-'.$suffix)
+            ->setUnitAmount(20000)
+            ->setCurrency('DZD')
+            ->setStatus(ArtisanServiceStatus::DRAFT);
+        $em->persist($as);
+
+        // Booking initial
+        $booking = new Booking();
+        $booking->setClient($user);
+        $booking->setArtisanService($as);
+        $booking->setStatus(\App\Enum\BookingStatus::INQUIRY);
+        $booking->setCommunicationChannel(\App\Enum\CommunicationChannel::PHONE_CALL);
+        $em->persist($booking);
+
+        $em->flush();
+
+        $bookingId = (string) $booking->getId();
+        $past = (new \DateTimeImmutable('-1 day'))->format(\DateTimeInterface::ATOM);
+
+        $client->request(
+            'PATCH',
+            '/api/bookings/'.$bookingId,
+            server: [
+                'HTTP_X_TEST_USER' => $email,
+            ],
+            content: \json_encode([
+                'scheduled_at' => $past,
+            ], \JSON_THROW_ON_ERROR)
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(422, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('invalid_scheduled_at_business', $data['error']);
+    }
+
+    public function testPatchBooking422WhenEstimatedAmountOutOfRange(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        $suffix = bin2hex(random_bytes(4));
+        $email = "booking-patch-amount+{$suffix}@example.test";
+
+        // Clean éventuel
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email = :e')
+            ->setParameter('e', $email)
+            ->execute();
+
+        // User (client)
+        $user = (new User())
+            ->setEmail($email)
+            ->setPassword('x');
+        $em->persist($user);
+
+        // Catégorie
+        $cat = (new Category())
+            ->setName('Plomberie PATCH AMOUNT '.$suffix)
+            ->setSlug('plomberie-patch-amount-'.$suffix);
+        $em->persist($cat);
+
+        // ServiceDefinition
+        $sd = (new ServiceDefinition())
+            ->setCategory($cat)
+            ->setName('Dépannage plomberie PATCH AMOUNT '.$suffix)
+            ->setSlug('depannage-plomberie-patch-amount-'.$suffix);
+        $em->persist($sd);
+
+        // ArtisanProfile
+        $ap = (new ArtisanProfile())
+            ->setUser($user)
+            ->setDisplayName('Artisan Plombier PATCH AMOUNT')
+            ->setPhone('+213555000000')
+            ->setWilaya('Alger')
+            ->setCommune('Bab Ezzouar');
+        $em->persist($ap);
+
+        // ArtisanService
+        $as = (new ArtisanService())
+            ->setArtisanProfile($ap)
+            ->setServiceDefinition($sd)
+            ->setTitle('Intervention plomberie PATCH AMOUNT '.$suffix)
+            ->setSlug('intervention-plomberie-patch-amount-'.$suffix)
+            ->setUnitAmount(20000)
+            ->setCurrency('DZD')
+            ->setStatus(ArtisanServiceStatus::DRAFT);
+        $em->persist($as);
+
+        // Booking initial
+        $booking = new Booking();
+        $booking->setClient($user);
+        $booking->setArtisanService($as);
+        $booking->setStatus(\App\Enum\BookingStatus::INQUIRY);
+        $booking->setCommunicationChannel(\App\Enum\CommunicationChannel::PHONE_CALL);
+        $em->persist($booking);
+
+        $em->flush();
+
+        $bookingId = (string) $booking->getId();
+
+        // Montant hors plage métier (trop bas)
+        $outOfRangeAmount = 100;
+
+        $client->request(
+            'PATCH',
+            '/api/bookings/'.$bookingId,
+            server: [
+                'HTTP_X_TEST_USER' => $email,
+            ],
+            content: \json_encode([
+                'estimated_amount' => $outOfRangeAmount,
+            ], \JSON_THROW_ON_ERROR)
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(422, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('invalid_estimated_amount_business', $data['error']);
     }
 }

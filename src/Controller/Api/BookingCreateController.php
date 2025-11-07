@@ -84,6 +84,15 @@ final class BookingCreateController extends AbstractController
                 return $this->json(['error' => 'invalid_scheduled_at'], 400);
             }
 
+            // Règle métier P3-02-05 : rendez-vous pas dans le passé, ni trop loin
+            $now = new \DateTimeImmutable();
+            $pastLimit = $now->modify('-5 minutes');
+            $futureLimit = $now->modify('+1 year');
+
+            if ($scheduledAt < $pastLimit || $scheduledAt > $futureLimit) {
+                return $this->json(['error' => 'invalid_scheduled_at_business'], 422);
+            }
+
             $booking->setScheduledAt($scheduledAt);
         }
 
@@ -94,16 +103,27 @@ final class BookingCreateController extends AbstractController
             // null explicite => on n'affecte rien
             if (null !== $rawAmount) {
                 $amount = $rawAmount;
+                $numeric = null;
 
                 if (\is_int($amount) || \is_float($amount)) {
+                    $numeric = (int) $amount;
                     $amount = (string) $amount;
-                }
+                } elseif (\is_string($amount)) {
+                    // On accepte uniquement des chiffres pour P3-02
+                    if ('' === $amount || !\ctype_digit($amount)) {
+                        return $this->json(['error' => 'invalid_estimated_amount'], 400);
+                    }
 
-                if (!\is_string($amount)) {
+                    $numeric = (int) $amount;
+                } else {
                     return $this->json(['error' => 'invalid_estimated_amount'], 400);
                 }
 
-                // Pas de validation métier avancée ici (P3-02-05)
+                // Règle métier P3-02-05 : montant entre 500 et 1 000 000 DZD
+                if ($numeric < 500 || $numeric > 1_000_000) {
+                    return $this->json(['error' => 'invalid_estimated_amount_business'], 422);
+                }
+
                 $booking->setEstimatedAmount($amount);
             }
         }

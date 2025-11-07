@@ -94,6 +94,15 @@ final class BookingPatchController extends AbstractController
                     return $this->json(['error' => 'invalid_scheduled_at'], 400);
                 }
 
+                // Règle métier P3-02-05 : rendez-vous pas dans le passé, ni trop loin
+                $now = new \DateTimeImmutable();
+                $pastLimit = $now->modify('-5 minutes');
+                $futureLimit = $now->modify('+1 year');
+
+                if ($scheduledAt < $pastLimit || $scheduledAt > $futureLimit) {
+                    return $this->json(['error' => 'invalid_scheduled_at_business'], 422);
+                }
+
                 $booking->setScheduledAt($scheduledAt);
             }
         }
@@ -104,13 +113,23 @@ final class BookingPatchController extends AbstractController
 
             if (null !== $rawAmount) {
                 $amount = $rawAmount;
+                $numeric = null;
 
                 if (\is_int($amount) || \is_float($amount)) {
+                    $numeric = (int) $amount;
                     $amount = (string) $amount;
+                } elseif (\is_string($amount)) {
+                    if ('' === $amount || !\ctype_digit($amount)) {
+                        return $this->json(['error' => 'invalid_estimated_amount'], 400);
+                    }
+
+                    $numeric = (int) $amount;
+                } else {
+                    return $this->json(['error' => 'invalid_estimated_amount'], 400);
                 }
 
-                if (!\is_string($amount)) {
-                    return $this->json(['error' => 'invalid_estimated_amount'], 400);
+                if ($numeric < 500 || $numeric > 1_000_000) {
+                    return $this->json(['error' => 'invalid_estimated_amount_business'], 422);
                 }
 
                 $booking->setEstimatedAmount($amount);
