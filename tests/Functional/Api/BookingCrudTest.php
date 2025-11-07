@@ -1,0 +1,574 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Functional\Api;
+
+use App\Entity\ArtisanProfile;
+use App\Entity\ArtisanService;
+use App\Entity\Booking;
+use App\Entity\Category;
+use App\Entity\ServiceDefinition;
+use App\Entity\User;
+use App\Enum\ArtisanServiceStatus;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+
+final class BookingCrudTest extends WebTestCase
+{
+    public function testCreateBookingRequiresAuthenticationReturns401(): void
+    {
+        $client = static::createClient();
+
+        $client->request(
+            'POST',
+            '/api/bookings',
+            server: [], // aucun header d'auth
+            content: \json_encode([
+                'artisan_service_id' => '01K9D4R9CJ2HPQQH7S3FYSJ1QA',
+                'communication_channel' => 'WHATSAPP',
+            ], \JSON_THROW_ON_ERROR)
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(401, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('unauthorized', $data['error']);
+    }
+
+    public function testCreateBooking201WithMinimalPayload(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        // --- Arrange : user + artisan service en base ---
+
+        $suffix = bin2hex(random_bytes(4));
+        $email = "booking-crud+{$suffix}@example.test";
+
+        // Nettoyage éventuel de l’email
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email = :e')
+            ->setParameter('e', $email)
+            ->execute();
+
+        // User (client)
+        $user = (new User())
+            ->setEmail($email)
+            ->setPassword('x'); // non utilisé par l’auth de test
+        $em->persist($user);
+
+        // Catégorie + ServiceDefinition
+        $cat = (new Category())
+            ->setName('Plomberie '.$suffix)
+            ->setSlug('plomberie-'.$suffix);
+        $em->persist($cat);
+
+        $sd = (new ServiceDefinition())
+            ->setCategory($cat)
+            ->setName('Dépannage plomberie '.$suffix)
+            ->setSlug('depannage-plomberie-'.$suffix);
+        $em->persist($sd);
+
+        // Profil artisan (marché Algérie : DZD + téléphone)
+        $ap = (new ArtisanProfile())
+            ->setUser($user)
+            ->setDisplayName('Artisan Plombier')
+            ->setPhone('+213555000000')
+            ->setWilaya('Alger')
+            ->setCommune('Hussein Dey');
+        $em->persist($ap);
+
+        // Service artisan (tarif en DZD)
+        $as = (new ArtisanService())
+            ->setArtisanProfile($ap)
+            ->setServiceDefinition($sd)
+            ->setTitle('Intervention plomberie '.$suffix)
+            ->setSlug('intervention-plomberie-'.$suffix)
+            ->setUnitAmount(20000)
+            ->setCurrency('DZD')
+            ->setStatus(ArtisanServiceStatus::DRAFT);
+        $em->persist($as);
+
+        $em->flush();
+
+        // --- Act : POST /api/bookings authentifié ---
+
+        $client->request(
+            'POST',
+            '/api/bookings',
+            server: [
+                // header consommé par TestTokenAuthenticator
+                'HTTP_X_TEST_USER' => $email,
+            ],
+            content: \json_encode([
+                'artisan_service_id' => (string) $as->getId(),
+                'communication_channel' => 'WHATSAPP',
+                // scheduled_at / estimated_amount facultatifs au début
+            ], \JSON_THROW_ON_ERROR)
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(201, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+
+        // Contrat minimal de réponse
+        self::assertIsArray($data);
+        self::assertArrayHasKey('id', $data);
+        self::assertArrayHasKey('status', $data);
+        self::assertArrayHasKey('scheduled_at', $data);
+        self::assertArrayHasKey('created_at', $data);
+        self::assertArrayHasKey('updated_at', $data);
+
+        self::assertSame('INQUIRY', $data['status']); // cohérent avec workflow initial_marking
+        self::assertNull($data['updated_at']);        // création → pas encore de mise à jour
+    }
+
+    public function testGetBookingRequiresAuthenticationReturns401(): void
+    {
+        $client = static::createClient();
+
+        $client->request('GET', '/api/bookings/01K9DUMMYIDNOTIMPORTANT');
+
+        $res = $client->getResponse();
+        self::assertSame(401, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('unauthorized', $data['error']);
+    }
+
+    public function testGetBooking400WhenInvalidBookingId(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        $email = 'booking-get-invalid-id@example.test';
+
+        // Clean éventuel
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email = :e')
+            ->setParameter('e', $email)
+            ->execute();
+
+        // User (client) pour que TestTokenAuthenticator puisse l'authentifier
+        $user = (new User())
+            ->setEmail($email)
+            ->setPassword('x');
+        $em->persist($user);
+        $em->flush();
+
+        $client->request(
+            'GET',
+            '/api/bookings/NOT_A_ULID',
+            server: [
+                'HTTP_X_TEST_USER' => $email,
+            ],
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(400, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('invalid_booking_id', $data['error']);
+    }
+
+    public function testGetBooking404WhenNotFound(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        $email = 'booking-get-notfound@example.test';
+
+        // Clean éventuel
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email = :e')
+            ->setParameter('e', $email)
+            ->execute();
+
+        $user = (new User())
+            ->setEmail($email)
+            ->setPassword('x');
+        $em->persist($user);
+        $em->flush();
+
+        // ULID valide mais qui ne correspond à aucun booking
+        $ulid = (string) new \Symfony\Component\Uid\Ulid();
+
+        $client->request(
+            'GET',
+            '/api/bookings/'.$ulid,
+            server: [
+                'HTTP_X_TEST_USER' => $email,
+            ],
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(404, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('booking_not_found', $data['error']);
+    }
+
+    public function testGetBooking200ReturnsBookingResource(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        // --- Arrange : créer user + graph + booking ---
+
+        $suffix = bin2hex(random_bytes(4));
+        $email = "booking-get+{$suffix}@example.test";
+
+        // Clean éventuel
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email = :e')
+            ->setParameter('e', $email)
+            ->execute();
+
+        // User (client)
+        $user = (new User())
+            ->setEmail($email)
+            ->setPassword('x');
+        $em->persist($user);
+
+        // Catégorie
+        $cat = (new Category())
+            ->setName('Plomberie GET '.$suffix)
+            ->setSlug('plomberie-get-'.$suffix);
+        $em->persist($cat);
+
+        // ServiceDefinition
+        $sd = (new ServiceDefinition())
+            ->setCategory($cat)
+            ->setName('Dépannage plomberie GET '.$suffix)
+            ->setSlug('depannage-plomberie-get-'.$suffix);
+        $em->persist($sd);
+
+        // ArtisanProfile
+        $ap = (new ArtisanProfile())
+            ->setUser($user)
+            ->setDisplayName('Artisan Plombier GET')
+            ->setPhone('+213555000000')
+            ->setWilaya('Alger')
+            ->setCommune('Bab Ezzouar');
+        $em->persist($ap);
+
+        // ArtisanService
+        $as = (new ArtisanService())
+            ->setArtisanProfile($ap)
+            ->setServiceDefinition($sd)
+            ->setTitle('Intervention plomberie GET '.$suffix)
+            ->setSlug('intervention-plomberie-get-'.$suffix)
+            ->setUnitAmount(20000)
+            ->setCurrency('DZD')
+            ->setStatus(ArtisanServiceStatus::DRAFT);
+        $em->persist($as);
+
+        // Booking
+        $booking = new Booking();
+        $booking->setClient($user);
+        $booking->setArtisanService($as);
+        $booking->setStatus(\App\Enum\BookingStatus::INQUIRY);
+        // scheduledAt nul pour commencer
+        $em->persist($booking);
+
+        $em->flush();
+
+        // --- Act : GET /api/bookings/{id} authentifié ---
+
+        $client->request(
+            'GET',
+            '/api/bookings/'.(string) $booking->getId(),
+            server: [
+                'HTTP_X_TEST_USER' => $email,
+            ],
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(200, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+
+        self::assertIsArray($data);
+        self::assertArrayHasKey('id', $data);
+        self::assertArrayHasKey('status', $data);
+        self::assertArrayHasKey('scheduled_at', $data);
+        self::assertArrayHasKey('created_at', $data);
+        self::assertArrayHasKey('updated_at', $data);
+
+        self::assertSame((string) $booking->getId(), $data['id']);
+        self::assertSame('INQUIRY', $data['status']);
+    }
+
+    public function testPatchBookingRequiresAuthenticationReturns401(): void
+    {
+        $client = static::createClient();
+
+        $client->request(
+            'PATCH',
+            '/api/bookings/01K9DUMMYIDNOTIMPORTANT',
+            content: \json_encode([
+                'communication_channel' => 'WHATSAPP',
+            ], \JSON_THROW_ON_ERROR)
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(401, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('unauthorized', $data['error']);
+    }
+
+    public function testPatchBooking400WhenInvalidJson(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        $email = 'booking-patch-invalid-json@example.test';
+
+        // Clean éventuel
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email = :e')
+            ->setParameter('e', $email)
+            ->execute();
+
+        $user = (new User())
+            ->setEmail($email)
+            ->setPassword('x');
+        $em->persist($user);
+        $em->flush();
+
+        $client->request(
+            'PATCH',
+            '/api/bookings/01K9DUMMYIDNOTIMPORTANT',
+            server: [
+                'HTTP_X_TEST_USER' => $email,
+            ],
+            // JSON volontairement invalide pour déclencher invalid_json
+            content: '{invalid json',
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(400, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('invalid_json', $data['error']);
+    }
+
+    public function testPatchBooking400WhenInvalidBookingId(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        $email = 'booking-patch-invalid-id@example.test';
+
+        // Clean éventuel
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email = :e')
+            ->setParameter('e', $email)
+            ->execute();
+
+        $user = (new User())
+            ->setEmail($email)
+            ->setPassword('x');
+        $em->persist($user);
+        $em->flush();
+
+        $client->request(
+            'PATCH',
+            '/api/bookings/NOT_A_ULID',
+            server: [
+                'HTTP_X_TEST_USER' => $email,
+            ],
+            content: \json_encode([
+                'communication_channel' => 'WHATSAPP',
+            ], \JSON_THROW_ON_ERROR)
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(400, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('invalid_booking_id', $data['error']);
+    }
+
+    public function testPatchBooking404WhenNotFound(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        $email = 'booking-patch-notfound@example.test';
+
+        // Clean éventuel
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email = :e')
+            ->setParameter('e', $email)
+            ->execute();
+
+        $user = (new User())
+            ->setEmail($email)
+            ->setPassword('x');
+        $em->persist($user);
+        $em->flush();
+
+        // ULID valide mais qui ne correspond à aucun booking
+        $ulid = (string) new \Symfony\Component\Uid\Ulid();
+
+        $client->request(
+            'PATCH',
+            '/api/bookings/'.$ulid,
+            server: [
+                'HTTP_X_TEST_USER' => $email,
+            ],
+            content: \json_encode([
+                'communication_channel' => 'WHATSAPP',
+            ], \JSON_THROW_ON_ERROR)
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(404, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('error', $data);
+        self::assertSame('booking_not_found', $data['error']);
+    }
+
+    public function testPatchBooking200UpdatesAllowedFields(): void
+    {
+        $client = static::createClient();
+
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get('doctrine')->getManager();
+
+        $suffix = bin2hex(random_bytes(4));
+        $email = "booking-patch+{$suffix}@example.test";
+
+        // Clean éventuel
+        $em->createQuery('DELETE FROM App\Entity\User u WHERE u.email = :e')
+            ->setParameter('e', $email)
+            ->execute();
+
+        // User (client)
+        $user = (new User())
+            ->setEmail($email)
+            ->setPassword('x');
+        $em->persist($user);
+
+        // Catégorie
+        $cat = (new Category())
+            ->setName('Plomberie PATCH '.$suffix)
+            ->setSlug('plomberie-patch-'.$suffix);
+        $em->persist($cat);
+
+        // ServiceDefinition
+        $sd = (new ServiceDefinition())
+            ->setCategory($cat)
+            ->setName('Dépannage plomberie PATCH '.$suffix)
+            ->setSlug('depannage-plomberie-patch-'.$suffix);
+        $em->persist($sd);
+
+        // ArtisanProfile
+        $ap = (new ArtisanProfile())
+            ->setUser($user)
+            ->setDisplayName('Artisan Plombier PATCH')
+            ->setPhone('+213555000000')
+            ->setWilaya('Alger')
+            ->setCommune('Bab Ezzouar');
+        $em->persist($ap);
+
+        // ArtisanService
+        $as = (new ArtisanService())
+            ->setArtisanProfile($ap)
+            ->setServiceDefinition($sd)
+            ->setTitle('Intervention plomberie PATCH '.$suffix)
+            ->setSlug('intervention-plomberie-patch-'.$suffix)
+            ->setUnitAmount(20000)
+            ->setCurrency('DZD')
+            ->setStatus(ArtisanServiceStatus::DRAFT);
+        $em->persist($as);
+
+        // Booking initial
+        $booking = new Booking();
+        $booking->setClient($user);
+        $booking->setArtisanService($as);
+        $booking->setStatus(\App\Enum\BookingStatus::INQUIRY);
+        $booking->setCommunicationChannel(\App\Enum\CommunicationChannel::PHONE_CALL);
+        $em->persist($booking);
+
+        $em->flush();
+
+        $bookingId = (string) $booking->getId();
+        $newScheduledAt = new \DateTimeImmutable('2025-01-02T03:04:05+01:00');
+
+        // --- Act : PATCH /api/bookings/{id} authentifié ---
+
+        $client->request(
+            'PATCH',
+            '/api/bookings/'.$bookingId,
+            server: [
+                'HTTP_X_TEST_USER' => $email,
+            ],
+            content: \json_encode([
+                'communication_channel' => 'WHATSAPP',
+                'scheduled_at' => $newScheduledAt->format(\DateTimeInterface::ATOM),
+                'estimated_amount' => 35000,
+            ], \JSON_THROW_ON_ERROR)
+        );
+
+        $res = $client->getResponse();
+        self::assertSame(200, $res->getStatusCode(), (string) $res->getContent());
+        self::assertJson($res->getContent());
+
+        $data = \json_decode((string) $res->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+
+        self::assertIsArray($data);
+        self::assertArrayHasKey('id', $data);
+        self::assertArrayHasKey('status', $data);
+        self::assertArrayHasKey('scheduled_at', $data);
+        self::assertArrayHasKey('created_at', $data);
+        self::assertArrayHasKey('updated_at', $data);
+
+        self::assertSame($bookingId, $data['id']);
+        self::assertSame('INQUIRY', $data['status']); // PATCH ne touche pas le workflow
+
+        // Vérifier que scheduled_at a été mis à jour
+        self::assertSame($newScheduledAt->format(\DateTimeInterface::ATOM), $data['scheduled_at']);
+
+        // updated_at doit être non nul après un PATCH
+        self::assertNotNull($data['updated_at']);
+    }
+}
