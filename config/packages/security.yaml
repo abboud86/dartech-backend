@@ -43,5 +43,8 @@ security:
     # Liveness/Readiness
     - { path: ^/healthz$, roles: PUBLIC_ACCESS }
 
+    # API interne (/api...) : authentification obligatoire
+    - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
+
     # Tout le reste de l'API v1 est protégé
     - { path: ^/v1, roles: IS_AUTHENTICATED_FULLY }
