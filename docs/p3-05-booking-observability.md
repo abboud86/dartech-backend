@@ -26,3 +26,33 @@
 - Documentation courte sur :
   - quels événements sont loggés,
   - comment les lire/interpréter.
+
+## Contrat d'événements (verrouillé P3-05)
+
+Events (slug) et champs communs:
+- event (string, required)
+- booking_id (ULID, required)
+- actor_user_id (ULID|null)
+- from_status (string|null)
+- to_status (string|null)
+- estimated_amount_old (int|null)
+- estimated_amount_new (int|null)
+- scheduled_at_old (datetime|null)
+- scheduled_at_new (datetime|null)
+- communication_channel (string|null)
+- note (string|null, court)
+- created_at (datetime, required)
+- request_id (string, required)
+- trace_id (string|null)
+
+Liste:
+- booking.created
+- booking.updated
+- booking.estimate.changed
+- booking.scheduled.changed
+- booking.channel.set
+- booking.transition.requested
+- booking.transition.applied
+- booking.transition.denied
+- validation.failed
+- security.denied
