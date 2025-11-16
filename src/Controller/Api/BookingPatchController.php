@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Entity\Booking;
+use App\Entity\BookingTimeline;
 use App\Entity\User;
 use App\Enum\CommunicationChannel;
 use Doctrine\ORM\EntityManagerInterface;
@@ -59,6 +60,9 @@ final class BookingPatchController extends AbstractController
             return $this->json(['error' => 'forbidden'], 403);
         }
 
+        // Snapshot initial de l'estimate pour savoir si ça change
+        $originalEstimatedAmount = $booking->getEstimatedAmount();
+
         // communication_channel optionnel
         if (\array_key_exists('communication_channel', $payload)) {
             $channelValue = $payload['communication_channel'];
@@ -109,7 +113,7 @@ final class BookingPatchController extends AbstractController
             }
         }
 
-        // estimated_amount optionnel + règle métier 422
+        // estimated_amount optionnel + règle métier 422 + timeline enrichie si changement
         if (\array_key_exists('estimated_amount', $payload)) {
             $rawAmount = $payload['estimated_amount'];
 
@@ -135,6 +139,24 @@ final class BookingPatchController extends AbstractController
                 }
 
                 $booking->setEstimatedAmount($amount);
+
+                // Si l'estimate change vraiment → on enrichit la timeline
+                if ($originalEstimatedAmount !== $booking->getEstimatedAmount()) {
+                    $timeline = new BookingTimeline(
+                        booking: $booking,
+                        toStatus: $booking->getStatusMarking() ?? 'UNKNOWN',
+                        fromStatus: $booking->getStatusMarking() ?? 'UNKNOWN',
+                        actor: null,
+                        context: [
+                            'event' => 'estimated_amount_changed',
+                            'estimated_amount_old' => $originalEstimatedAmount,
+                            'estimated_amount_new' => $booking->getEstimatedAmount(),
+                        ],
+                        occurredAt: null,
+                    );
+
+                    $this->em->persist($timeline);
+                }
             }
         }
 

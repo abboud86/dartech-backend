@@ -1,2 +1,6 @@
 parameters:
   app.enable_test_auth: true
+  
+  App\Tests\Functional\Support\TestEntityFactory:
+        autowire: true
+        public: true
