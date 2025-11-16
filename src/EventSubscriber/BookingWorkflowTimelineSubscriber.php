@@ -37,13 +37,15 @@ final class BookingWorkflowTimelineSubscriber
             return;
         }
 
-        // 👉 Conformément au test actuel: actor DOIT rester null.
         $timeline = new BookingTimeline(
             booking: $subject,
             toStatus: $to,
             fromStatus: $from,
-            actor: null,     // <— forcer null ici
-            context: null,
+            actor: null, // pour l'instant : pas d'acteur tracé dans ces transitions
+            context: [
+                'event' => 'workflow_transition_completed',
+                'transition' => $transition->getName(),
+            ],
             occurredAt: null,
         );
 

@@ -6,6 +6,7 @@ namespace App\Controller\Api;
 
 use App\Entity\ArtisanService;
 use App\Entity\Booking;
+use App\Entity\BookingTimeline;
 use App\Entity\User;
 use App\Enum\BookingStatus;
 use App\Enum\CommunicationChannel;
@@ -49,7 +50,7 @@ final class BookingCreateController extends AbstractController
             return $this->json(['error' => 'missing_communication_channel'], 400);
         }
 
-        // Validation brute du channel dans P3-02
+        // Validation brute du channel
         try {
             $communicationChannel = CommunicationChannel::from($channelValue);
         } catch (\ValueError) {
@@ -68,7 +69,6 @@ final class BookingCreateController extends AbstractController
         $booking->setClient($user);
         $booking->setArtisanService($artisanService);
         $booking->setStatus(BookingStatus::INQUIRY); // initial_marking cohérent avec workflow
-
         $booking->setCommunicationChannel($communicationChannel);
 
         // scheduled_at optionnel
@@ -84,7 +84,7 @@ final class BookingCreateController extends AbstractController
                 return $this->json(['error' => 'invalid_scheduled_at'], 400);
             }
 
-            // Règle métier P3-02-05 : rendez-vous pas dans le passé, ni trop loin
+            // Règle métier : rendez-vous pas dans le passé, ni trop loin
             $now = new \DateTimeImmutable();
             $pastLimit = $now->modify('-5 minutes');
             $futureLimit = $now->modify('+1 year');
@@ -96,7 +96,7 @@ final class BookingCreateController extends AbstractController
             $booking->setScheduledAt($scheduledAt);
         }
 
-        // estimated_amount optionnel (P3-02 : on accepte un entier ou une string simple)
+        // estimated_amount optionnel
         if (\array_key_exists('estimated_amount', $payload)) {
             $rawAmount = $payload['estimated_amount'];
 
@@ -109,7 +109,7 @@ final class BookingCreateController extends AbstractController
                     $numeric = (int) $amount;
                     $amount = (string) $amount;
                 } elseif (\is_string($amount)) {
-                    // On accepte uniquement des chiffres pour P3-02
+                    // On accepte uniquement des chiffres
                     if ('' === $amount || !\ctype_digit($amount)) {
                         return $this->json(['error' => 'invalid_estimated_amount'], 400);
                     }
@@ -119,7 +119,7 @@ final class BookingCreateController extends AbstractController
                     return $this->json(['error' => 'invalid_estimated_amount'], 400);
                 }
 
-                // Règle métier P3-02-05 : montant entre 500 et 1 000 000 DZD
+                // Règle métier : montant entre 500 et 1 000 000 DZD
                 if ($numeric < 500 || $numeric > 1_000_000) {
                     return $this->json(['error' => 'invalid_estimated_amount_business'], 422);
                 }
@@ -128,7 +128,24 @@ final class BookingCreateController extends AbstractController
             }
         }
 
+        // Persist booking + ligne de timeline "booking_created" avec contexte complet
         $this->em->persist($booking);
+
+        $timeline = new BookingTimeline(
+            booking: $booking,
+            toStatus: $booking->getStatusMarking() ?? BookingStatus::INQUIRY->value,
+            fromStatus: null,
+            actor: null,
+            context: [
+                'event' => 'booking_created',
+                'communication_channel' => $booking->getCommunicationChannel()?->value,
+                'scheduled_at' => $booking->getScheduledAt()?->format(\DateTimeInterface::ATOM),
+                'estimated_amount' => $booking->getEstimatedAmount(),
+            ],
+            occurredAt: null,
+        );
+
+        $this->em->persist($timeline);
         $this->em->flush();
 
         // Réponse alignée sur BookingListController
