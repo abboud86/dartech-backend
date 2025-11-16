@@ -1,0 +1,8 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Admin dashboard{% endblock %}
+
+{% block body %}
+    <h1>Admin dashboard</h1>
+    <p>Section: {{ section|default('dashboard') }}</p>
+{% endblock %}
