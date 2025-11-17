@@ -8,13 +8,12 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
+#[Route('/admin', name: 'admin_')]
 final class AdminController extends AbstractController
 {
-    #[Route('/admin', name: 'admin_dashboard', methods: ['GET'])]
-    public function index(): Response
+    #[Route('', name: 'dashboard', methods: ['GET'])]
+    public function dashboard(): Response
     {
-        return $this->render('admin/dashboard.html.twig', [
-            'section' => 'dashboard',
-        ]);
+        return $this->render('admin/dashboard.html.twig');
     }
 }
