@@ -1,0 +1,29 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Admin • Dashboard{% endblock %}
+
+{% block body %}
+    <h1 class="mb-4">Admin — Dashboard</h1>
+
+    <p class="text-muted mb-3">
+        Espace de supervision minimal du catalogue et des artisans.
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem;">
+        <a href="{{ path('admin_artisans_list') }}"
+           style="display:block;padding:1rem 1.25rem;border-radius:0.75rem;border:1px solid #e5e7eb;background:#ffffff;text-decoration:none;color:inherit;">
+            <h2 style="margin:0 0 0.25rem;font-size:1rem;">Artisans</h2>
+            <p style="margin:0;font-size:0.875rem;color:#4b5563;">
+                Voir les artisans vérifiés avec au moins un service publié.
+            </p>
+        </a>
+
+        <a href="{{ path('admin_services_list') }}"
+           style="display:block;padding:1rem 1.25rem;border-radius:0.75rem;border:1px solid #e5e7eb;background:#ffffff;text-decoration:none;color:inherit;">
+            <h2 style="margin:0 0 0.25rem;font-size:1rem;">Services</h2>
+            <p style="margin:0;font-size:0.875rem;color:#4b5563;">
+                Consulter les services actifs du catalogue.
+            </p>
+        </a>
+    </div>
+{% endblock %}

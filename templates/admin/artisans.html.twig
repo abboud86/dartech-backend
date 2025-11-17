@@ -1,0 +1,97 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Admin • Artisans{% endblock %}
+
+{% block body %}
+    <h1>Artisans (KYC = verified • services publiés ≥ 1)</h1>
+
+    <p class="text-muted mb-3">
+        Total: <strong>{{ pagination.total }}</strong> •
+        Page {{ pagination.page }} •
+        Limite {{ pagination.limit }}
+        {% if filters.commune %}
+            • Filtre commune:
+            <span class="badge bg-secondary">{{ filters.commune }}</span>
+        {% endif %}
+    </p>
+
+    <form class="row g-2 mb-3" method="get" action="">
+        <div class="col-md-4">
+            <label class="form-label">Commune</label>
+            <input type="text"
+                   name="commune"
+                   value="{{ filters.commune|default('')|e }}"
+                   class="form-control">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Limite</label>
+            <input type="number"
+                   name="limit"
+                   min="1"
+                   max="100"
+                   value="{{ pagination.limit }}"
+                   class="form-control">
+        </div>
+        <div class="col-md-3 d-flex align-items-end gap-2">
+            <button type="submit" class="btn btn-primary">Filtrer</button>
+            {% if filters.commune %}
+                <a href="?limit={{ pagination.limit }}" class="btn btn-link p-0">Reset filtre</a>
+            {% endif %}
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead>
+            <tr>
+                <th class="text-end">ID</th>
+                <th>Nom</th>
+                <th>Slug</th>
+                <th>Wilaya</th>
+                <th>Commune</th>
+                <th>Services publiés</th>
+                <th>Créé le</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for ap in items %}
+                <tr>
+                    <td class="text-end">{{ ap.id }}</td>
+                    <td>{{ ap.displayName ?? '—' }}</td>
+                    <td><span class="badge text-bg-light">{{ ap.slug }}</span></td>
+                    <td>{{ ap.wilaya ?? '—' }}</td>
+                    <td>{{ ap.commune ?? '—' }}</td>
+                    <td class="text-success fw-semibold">≥ 1</td>
+                    <td>{{ ap.createdAt ? ap.createdAt|date('Y-m-d H:i') : '—' }}</td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-primary"
+                           href="{{ path('admin_artisans_show', { id: ap.id }) }}">
+                            Voir la fiche
+                        </a>
+                    </td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="8" class="text-muted">Aucun artisan ne correspond aux critères.</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <nav class="d-flex gap-2 mt-3">
+        {% if pagination.hasPrev %}
+            <a class="btn btn-outline-secondary btn-sm"
+               href="?page={{ pagination.page - 1 }}&limit={{ pagination.limit }}&commune={{ filters.commune|default('')|url_encode }}">
+                ← Précédent
+            </a>
+        {% endif %}
+        {% if pagination.hasNext %}
+            <a class="btn btn-outline-secondary btn-sm"
+               href="?page={{ pagination.page + 1 }}&limit={{ pagination.limit }}&commune={{ filters.commune|default('')|url_encode }}">
+                Suivant →
+            </a>
+        {% endif %}
+    </nav>
+{% endblock %}
