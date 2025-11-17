@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Entity\ArtisanProfile;
 use App\Repository\ArtisanProfileRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -65,5 +66,34 @@ final class ArtisanAdminController extends AbstractController
                 'commune' => $commune,
             ],
         ]);
+    }
+
+    #[Route('/{id}', name: 'show', requirements: ['id' => '\d+'], methods: ['GET'])]
+    public function show(int $id): Response
+    {
+        $qb = $this->profiles->createQueryBuilder('ap')
+            ->leftJoin('ap.artisanServices', 's', 'WITH', 's.status = :active')
+            ->addSelect('s')
+            ->andWhere('ap.kycStatus = :verified')
+            ->andWhere('ap.id = :id')
+            ->setParameter('verified', 'verified')
+            ->setParameter('active', 'active')
+            ->setParameter('id', $id)
+            ->setMaxResults(1);
+
+        /** @var ArtisanProfile|null $profile */
+        $profile = $qb->getQuery()->getOneOrNullResult();
+
+        if (null === $profile) {
+            throw $this->createNotFoundException('Artisan introuvable ou non éligible.');
+        }
+
+        $response = $this->render('admin/artisan_show.html.twig', [
+            'artisan' => $profile,
+            'services' => $profile->getArtisanServices(), // filtrés "active" par le LEFT JOIN WITH
+        ]);
+        $response->headers->set('Cache-Control', 'no-store, private');
+
+        return $response;
     }
 }

@@ -51,6 +51,7 @@
                 <th>Commune</th>
                 <th>Services publiés</th>
                 <th>Créé le</th>
+                <th>Actions</th>
             </tr>
             </thead>
             <tbody>
@@ -63,10 +64,16 @@
                     <td>{{ ap.commune ?? '—' }}</td>
                     <td class="text-success fw-semibold">≥ 1</td>
                     <td>{{ ap.createdAt ? ap.createdAt|date('Y-m-d H:i') : '—' }}</td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-primary"
+                           href="{{ path('admin_artisans_show', { id: ap.id }) }}">
+                            Voir la fiche
+                        </a>
+                    </td>
                 </tr>
             {% else %}
                 <tr>
-                    <td colspan="7" class="text-muted">Aucun artisan ne correspond aux critères.</td>
+                    <td colspan="8" class="text-muted">Aucun artisan ne correspond aux critères.</td>
                 </tr>
             {% endfor %}
             </tbody>

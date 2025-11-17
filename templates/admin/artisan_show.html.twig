@@ -1,0 +1,74 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Admin • {{ artisan.displayName ?? 'Artisan' }}{% endblock %}
+
+{% block body %}
+    <a class="btn btn-link mb-3" href="{{ path('admin_artisans_list') }}">← Retour à la liste</a>
+
+    <h1>
+        {{ artisan.displayName ?? '—' }}
+        <span class="badge text-bg-secondary">{{ artisan.slug }}</span>
+    </h1>
+
+    <p class="text-muted">
+        KYC: <strong>{{ artisan.kycStatus.value }}</strong> •
+        Créé le {{ artisan.createdAt ? artisan.createdAt|date('Y-m-d H:i') : '—' }}
+    </p>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <dl class="row">
+                <dt class="col-sm-4 text-muted">Téléphone</dt>
+                <dd class="col-sm-8">{{ artisan.phone ?? '—' }}</dd>
+
+                <dt class="col-sm-4 text-muted">Wilaya</dt>
+                <dd class="col-sm-8">{{ artisan.wilaya ?? '—' }}</dd>
+
+                <dt class="col-sm-4 text-muted">Commune</dt>
+                <dd class="col-sm-8">{{ artisan.commune ?? '—' }}</dd>
+
+                <dt class="col-sm-4 text-muted">Bio</dt>
+                <dd class="col-sm-8">{{ artisan.bio ?? '—' }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <h2>Services publiés (≥ 1)</h2>
+
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead>
+            <tr>
+                <th>Titre</th>
+                <th>Slug</th>
+                <th>Tarif</th>
+                <th>Statut</th>
+                <th>Créé le</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for s in services %}
+                {% if s.status.value == 'active' %}
+                    <tr>
+                        <td>{{ s.title ?? '—' }}</td>
+                        <td><span class="badge text-bg-light">{{ s.slug ?? '—' }}</span></td>
+                        <td>
+                            {% if s.unitAmount is not null and s.currency is not null %}
+                                {{ s.unitAmount }} {{ s.currency }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>{{ s.status.value }}</td>
+                        <td>{{ s.createdAt ? s.createdAt|date('Y-m-d H:i') : '—' }}</td>
+                    </tr>
+                {% endif %}
+            {% else %}
+                <tr>
+                    <td colspan="5" class="text-muted">Aucun service “active”.</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
